@@ -1,5 +1,5 @@
 
-import analysis.SixteenBitRedBkgComp7;
+import analysis.StackBkgComp7;
 import org.rhwlab.manifest.ManifestX;
 
 public class SixteenBitRedExtractor1 {
@@ -10,8 +10,8 @@ public class SixteenBitRedExtractor1 {
      */
     public static void main(String[] args) {
 		ManifestX.reportAndUpdateManifest();
-        SixteenBitRedBkgComp7.cSignalIsGreen = false;
-        SixteenBitRedBkgComp7.main(args);
+        StackBkgComp7.cSignalIsGreen = false;
+        StackBkgComp7.main(args);
 
     }
     private static void println(String s) {System.out.println(s);}

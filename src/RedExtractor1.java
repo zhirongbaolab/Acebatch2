@@ -1,5 +1,5 @@
 
-import analysis.RedBkgComp7;
+import analysis.SliceBkgComp7;
 import org.rhwlab.manifest.ManifestX;
 
 public class RedExtractor1 {
@@ -10,8 +10,8 @@ public class RedExtractor1 {
      */
     public static void main(String[] args) {
 		ManifestX.reportAndUpdateManifest();
-        RedBkgComp7.cSignalIsGreen = false;
-        RedBkgComp7.main(args);
+        SliceBkgComp7.cSignalIsGreen = false;
+        SliceBkgComp7.main(args);
 
     }
     private static void println(String s) {System.out.println(s);}

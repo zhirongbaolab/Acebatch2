@@ -10,34 +10,25 @@ import ij.process.ShortBlitter;
 import ij.process.ShortProcessor;
 import ij.process.ShortStatistics;
 import ij.process.ImageStatistics;
-import ij.measure.Measurements;
 import ij.process.ImageProcessor;
 import ij.io.Opener;
 
 
 import java.awt.Polygon;
 import java.io.File;
-import java.io.IOException;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.ByteArrayInputStream;
-import java.text.DecimalFormat;
 import java.util.Collections;
 import java.util.Hashtable;
 import java.util.Vector;
-import java.util.zip.ZipEntry;
 
 import org.rhwlab.image.ImageWindow;
 import org.rhwlab.snight.Config;
-import org.rhwlab.snight.NucZipper;
 import org.rhwlab.snight.NucleiMgr;
 import org.rhwlab.snight.Nucleus;
 import org.rhwlab.utils.EUtils;
-import org.rhwlab.utils.C;
-import org.rhwlab.image.ZipImage;
 
 
-public class SixteenBitRedBkgComp7 extends RedBkgComp7 {
+public class SixteenBitRedBkgComp7 extends SliceBkgComp7 {
 // overwrite all functions that test for 16 bit stack to assume it ignoring flag in file. 
 
 
@@ -531,7 +522,7 @@ iTifPrefixR=c.iTifPrefix;
 			println("usage requires at least two args");
 			System.exit(0);
 		}
-		SixteenBitRedBkgComp7 rbc = new SixteenBitRedBkgComp7();
+		StackBkgComp7 rbc = new StackBkgComp7();
 		rbc.loadFromFile(args[0]);
         int end = Integer.parseInt(args[1]);
         int start = 1;
