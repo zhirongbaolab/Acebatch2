@@ -2,19 +2,15 @@ package analysis;
 
 import ij.ImagePlus;
 import ij.gui.OvalRoi;
-import ij.process.Blitter;
-import ij.process.ByteBlitter;
-import ij.process.ByteProcessor;
-import ij.process.ByteStatistics;
-import ij.process.ShortBlitter;
-import ij.process.ShortProcessor;
-import ij.process.ShortStatistics;
-import ij.process.ImageStatistics;
-import ij.process.ImageProcessor;
 import ij.io.Opener;
+import ij.process.*;
+import org.rhwlab.image.ImageWindow;
+import org.rhwlab.image.ZipImage;
+import org.rhwlab.image.management.ImageConfig;
+import org.rhwlab.snight.*;
+import org.rhwlab.utils.EUtils;
 
-
-import java.awt.Polygon;
+import java.awt.*;
 import java.io.File;
 import java.io.FileInputStream;
 import java.text.DecimalFormat;
@@ -23,28 +19,16 @@ import java.util.Hashtable;
 import java.util.Vector;
 import java.util.zip.ZipEntry;
 
-import org.rhwlab.image.ImageWindow;
-import org.rhwlab.image.management.ImageConfig;
-import org.rhwlab.snight.*;
-import org.rhwlab.utils.EUtils;
-import org.rhwlab.image.ZipImage;
-
 
 public class SliceBkgComp7 {
 
-    String          iConfigFile;
-    Config			iConfig;
-    public NucleiMgr       iNucleiMgr;
     int             iTime;
     int             iPlane;
     String          iImgPath;
 
-    public String          iZipTifFilePath;
     public String          iTifPrefixR;
     Vector          nuclei_record;
     String          iTitle;
-
-    int             iUseZip;
 
 
     protected int		iFileNameType;
@@ -715,39 +699,42 @@ public class SliceBkgComp7 {
         return 2*r;
     }
 
+    //////////////////////////////////////
+    /**
+     * Revisions made 03/2019
+     * @author bradenkatzman
+     *
+     *
+     */
+    //////////////////////////////////////
 
+    /** vars */
+    private Config configManager;
+    private NucleiMgr nucManager;
+    private String extractionColor;
+    private int startTimePt;
+    private int endTimePt;
+    private double mid;
+    private double large;
+    private double blot;
 
-
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) {
-		if (args.length < 2) {
-			println("usage requires at least two args");
-			System.exit(0);
-		}
-		SliceBkgComp7 rbc = new SliceBkgComp7();
-		rbc.loadFromFile(args[0]);
-        int end = Integer.parseInt(args[1]);
-        int start = 1;
-        if (args.length > 2) start = Integer.parseInt(args[2]);
-        double mid = 1.2;
-        double large = 2.0;
-        double blot = 1.2;
-        if (args.length > 3) {
-            mid = Double.parseDouble(args[3]);
-            large = Double.parseDouble(args[4]);
-            blot = Double.parseDouble(args[5]);
-        }
-        rbc.setParameters(start, end, mid, large, blot);
-
-        rbc.extract();
-        rbc.saveNuclei();
-
-	}
-
-    public SliceBkgComp7(ImageConfig imageConfig, NucleiConfig nucleiConfig,
+    /**
+     * Constructor called by ExtractorMain
+     */
+    public SliceBkgComp7(Config configManager, NucleiMgr nucManager,
                          String extractionColor, int startTimePt, int endTimePt, double mid, double large, double blot) {
+        // set all the parameters
+        this.configManager = configManager;
+        this.nucManager = nucManager;
+        this.extractionColor = extractionColor;
+        this.startTimePt = startTimePt;
+        this.endTimePt = endTimePt;
+        this.mid = mid;
+        this.large = large;
+        this.blot = blot;
+    }
+
+    public void run() {
         loadFromFile(args[0]);
         int end = Integer.parseInt(args[1]);
         int start = 1;
@@ -764,10 +751,6 @@ public class SliceBkgComp7 {
 
         rbc.extract();
         rbc.saveNuclei();
-    }
-
-    public void run() {
-
     }
 
     protected static void println(String s) {System.out.println(s);}

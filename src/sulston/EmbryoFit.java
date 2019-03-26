@@ -1,14 +1,13 @@
 package sulston;
 
-import java.text.DecimalFormat;
-import java.util.Vector;
-
 import analysis.Embryo;
+import flanagan.math.MinimisationFunction;
+import flanagan.plot.PlotGraph;
 import org.rhwlab.snight.NucleiMgr;
 import vembryo.Vembryo3;
 
-import flanagan.math.MinimisationFunction;
-import flanagan.plot.PlotGraph;
+import java.text.DecimalFormat;
+import java.util.Vector;
 
 public class EmbryoFit {
 

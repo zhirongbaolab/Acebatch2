@@ -2,8 +2,6 @@ package analysis;
 
 import java.text.DecimalFormat;
 
-import flanagan.analysis.Stat;
-
 public class Test {
 
 	void test() {

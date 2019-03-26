@@ -1,25 +1,23 @@
 package sulston;
 
-import ij.ImagePlus;
-import ij.process.ByteProcessor;
-
-import java.awt.Polygon;
-import java.io.File;
-import java.text.DecimalFormat;
-import java.util.Vector;
-
 import analysis.Embryo;
-import org.rhwlab.manifest.ManifestX;
-import org.rhwlab.snight.Config;
-import org.rhwlab.snight.MeasureCSV;
-import org.rhwlab.snight.Nucleus;
-import sulston.EmbryoFit.MinimFunct;
-import org.rhwlab.utils.EUtils;
-
 import flanagan.analysis.Regression;
 import flanagan.analysis.Stat;
 import flanagan.math.Minimisation;
 import flanagan.plot.PlotGraph;
+import ij.ImagePlus;
+import ij.process.ByteProcessor;
+import org.rhwlab.manifest.ManifestX;
+import org.rhwlab.snight.Config;
+import org.rhwlab.snight.MeasureCSV;
+import org.rhwlab.snight.Nucleus;
+import org.rhwlab.utils.EUtils;
+import sulston.EmbryoFit.MinimFunct;
+
+import java.awt.*;
+import java.io.File;
+import java.text.DecimalFormat;
+import java.util.Vector;
 
 public class Measure {
 

@@ -10,13 +10,11 @@ import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
+import org.rhwlab.utils.EUtils;
 
-import java.awt.Dimension;
+import java.awt.*;
 import java.io.File;
 import java.text.DecimalFormat;
-
-import org.rhwlab.sulston.EllipseFit.MaximFunct;
-import org.rhwlab.utils.EUtils;
 
 public class EllipseFitTest {
 

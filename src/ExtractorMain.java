@@ -1,9 +1,10 @@
 import analysis.SliceBkgComp7;
 import analysis.StackBkgComp7;
-import ij.ImagePlus;
 import org.rhwlab.image.ParsingLogic.ImageNameLogic;
 import org.rhwlab.image.management.ImageConfig;
+import org.rhwlab.snight.Config;
 import org.rhwlab.snight.NucleiConfig;
+import org.rhwlab.snight.NucleiMgr;
 import org.rhwlab.snight.XMLConfig;
 
 import java.io.File;
@@ -26,6 +27,11 @@ import static org.rhwlab.image.management.ImageManager.getImageBitDepth;
 
 public class ExtractorMain {
 
+    /**
+     * Parse the arguments and pass the information along to a loader
+     *
+     * @param args
+     */
     public static void main(String[] args) {
         // check the args
         if (args.length < 3) {
@@ -46,8 +52,8 @@ public class ExtractorMain {
 
             // the second CLA is the color to extract
             String extractionColor = args[1];
-            if (!extractionColor.equals(R) && !extractionColor.equals(G)) {
-                pln("Extraction color argument not properly specified. Must be either R or G");
+            if (!extractionColor.equals(R) && !extractionColor.equals(G) && !extractionColor.equals(B)) {
+                pln("Extraction color argument not properly specified. Must be either R, G, or B");
             }
 
             // the third CLA is the last time point
@@ -75,21 +81,31 @@ public class ExtractorMain {
         }
     }
 
+    /**
+     * Given passed command line arguments, build the Image and Nuclei config objects and then pass off to the parsing
+     * method to determine the correct course of action
+     *
+     * @param configFilePath
+     * @param extractionColor
+     * @param startTimePt
+     * @param endTimePt
+     * @param mid
+     * @param large
+     * @param blot
+     */
     public static void loadDatasetAndDelegateExtraction(String configFilePath, String extractionColor, int startTimePt, int endTimePt, double mid, double large, double blot) {
         XMLConfig xmlConfigLoader = new XMLConfig();
         Hashtable<String, String> xmlConfigData = xmlConfigLoader.loadConfigDataFromXMLFile(configFilePath);
 
-        // load the image configurations and make necessary updates
-        ImageConfig imageConfig = new ImageConfig(xmlConfigData, configFilePath);
+        // make a Config object which contain an ImageConfig and NucleiConfig object
+        Config configManager = new Config(configFilePath);
 
-        // load the nuclei configurations
-        NucleiConfig nucleiConfig = new NucleiConfig(xmlConfigData, configFilePath);
+        // make a NucleiMgr object from the config object
+        NucleiMgr nucManager = new NucleiMgr(configManager.getNucleiConfig());
 
-        if (imageConfig != null && nucleiConfig != null) {
-            determineImagePropsAndDelegateExtraction(imageConfig, nucleiConfig, extractionColor, startTimePt, endTimePt, mid, large, blot);
+        if (configManager.getImageConfig() != null && configManager.getNucleiConfig() != null) {
+            determineImagePropsAndDelegateExtraction(configManager, nucManager, extractionColor, startTimePt, endTimePt, mid, large, blot);
         }
-
-
     }
 
     /**
@@ -103,13 +119,13 @@ public class ExtractorMain {
      * These same checks are all made here to make Acebatch2 compatible with all .xml files that are supported
      * by AceTree
      */
-    public static void determineImagePropsAndDelegateExtraction(ImageConfig imageConfig, NucleiConfig nucleiConfig,
+    public static void determineImagePropsAndDelegateExtraction(Config configManager, NucleiMgr nucManager,
                                                                        String extractionColor, int startTimePt, int endTimePt, double mid, double large, double blot) {
             // first thing we need to check if whether multiple image files (corresponding to different color channels) were provided in the config file
             // these two conditions are the result of the two conventions for supplying an <image> tag in the XML file. See documentation or ImageConfig.java
-            if (!imageConfig.areMultipleImageChannelsGiven()) {
+            if (!configManager.getImageConfig().areMultipleImageChannelsGiven()) {
                 // only one file was provided --> let's see if it exists
-                String imageFile = imageConfig.getProvidedImageFileName();
+                String imageFile = configManager.getImageConfig().getProvidedImageFileName();
                 //System.out.println("Checking on file: " + imageFile);
                 if(!new File(imageFile).exists()) {
                     System.out.println("The image listed in the config file does not exist on the system. Checking if it's an 8bit image that no longer exists...");
@@ -125,27 +141,27 @@ public class ExtractorMain {
                             //System.out.println(newFileNameAttempt);
                             if (new File(newFileNameAttempt).exists()) {
                                 System.out.println("16bit image file exists. Updating file in ImageConfig to: " + newFileNameAttempt);
-                                imageConfig.setProvidedImageFileName(newFileNameAttempt);
-                                imageConfig.setImagePrefixes();
+                                configManager.getImageConfig().setProvidedImageFileName(newFileNameAttempt);
+                                configManager.getImageConfig().setImagePrefixes();
 
                                 // because the image series is now known to be 16bit stacks, we specify the two assumptions about them
                                 // that AceTree makes (derived from the confocal microscope): flip and split the stack
                                 // ** NOTE: if these assumptions are explicitly given, we don't override them
-                                imageConfig.setUseStack(1);
+                                configManager.getImageConfig().setUseStack(1);
 
-                                if (!imageConfig.isSplitStackGiven()) {
-                                    imageConfig.setSplitStack(1);
+                                if (!configManager.getImageConfig().isSplitStackGiven()) {
+                                    configManager.getImageConfig().setSplitStack(1);
                                 }
 
-                                if (!imageConfig.isFlipStackGiven()) {
-                                    imageConfig.setFlipStack(1);
+                                if (!configManager.getImageConfig().isFlipStackGiven()) {
+                                    configManager.getImageConfig().setFlipStack(1);
                                 }
 
                                 // set the starting time
-                                imageConfig.setStartingIndex(ImageNameLogic.extractTimeFromImageFileName(newFileNameAttempt));
+                                configManager.getImageConfig().setStartingIndex(ImageNameLogic.extractTimeFromImageFileName(newFileNameAttempt));
 
                                 // call the stack extractor for the color specified by the CLAs
-                                StackBkgComp7 stackExtract = new StackBkgComp7(imageConfig, nucleiConfig,
+                                StackBkgComp7 stackExtract = new StackBkgComp7(configManager, nucManager,
                                         extractionColor, startTimePt, endTimePt, mid, large, blot);
                                 stackExtract.run();
 
@@ -167,16 +183,16 @@ public class ExtractorMain {
                     // if we've reached here, either the supplied file exists, or a 16bit corollary was found and we will now proceed with that
                     if (getImageBitDepth(imageFile) == _8BIT_ID) {
                         // load this image as the first in the image series
-                        imageConfig.setUseStack(0); // in case it isn't correctly set
-                        imageConfig.setFlipStack(0);
-                        imageConfig.setSplitStack(0);
+                        configManager.getImageConfig().setUseStack(0); // in case it isn't correctly set
+                        configManager.getImageConfig().setFlipStack(0);
+                        configManager.getImageConfig().setSplitStack(0);
 
 
                         // set the starting time
-                        imageConfig.setStartingIndex(ImageNameLogic.extractTimeFromImageFileName(imageConfig.getProvidedImageFileName()));
+                        configManager.getImageConfig().setStartingIndex(ImageNameLogic.extractTimeFromImageFileName(configManager.getImageConfig().getProvidedImageFileName()));
 
                         // call the slice extractor for the color specified by the CLAs
-                        SliceBkgComp7 sliceExtract = new SliceBkgComp7(imageConfig, nucleiConfig,
+                        SliceBkgComp7 sliceExtract = new SliceBkgComp7(configManager, nucManager,
                                 extractionColor, startTimePt, endTimePt, mid, large, blot);
                         sliceExtract.run();
 
@@ -190,23 +206,23 @@ public class ExtractorMain {
                         if (!secondColorChannelFromiSIM.isEmpty()) {
                             //System.out.println("ImageManager found second channel stack by assuming iSIM data structure. Loading both channels...");
                             // the assumptions for the iSIM: don't flip, don't split
-                            imageConfig.setUseStack(1);
-                            if (!imageConfig.isSplitStackGiven()) {
-                                imageConfig.setSplitStack(0);
+                            configManager.getImageConfig().setUseStack(1);
+                            if (!configManager.getImageConfig().isSplitStackGiven()) {
+                                configManager.getImageConfig().setSplitStack(0);
                             }
 
-                            if (!imageConfig.isFlipStackGiven()) {
-                                imageConfig.setFlipStack(0);
+                            if (!configManager.getImageConfig().isFlipStackGiven()) {
+                                configManager.getImageConfig().setFlipStack(0);
                             }
 
                             // we need to add this second color channel to the image config so that its prefix will be maintained
-                            imageConfig.addColorChannelImageToConfig(secondColorChannelFromiSIM);
+                            configManager.getImageConfig().addColorChannelImageToConfig(secondColorChannelFromiSIM);
 
                             // set the starting time
-                            imageConfig.setStartingIndex(ImageNameLogic.extractTimeFromImageFileName(imageFile));
+                            configManager.getImageConfig().setStartingIndex(ImageNameLogic.extractTimeFromImageFileName(imageFile));
 
                             // call the stack extractor for the color specified by the CLAs
-                            StackBkgComp7 stackExtract = new StackBkgComp7(imageConfig, nucleiConfig,
+                            StackBkgComp7 stackExtract = new StackBkgComp7(configManager, nucManager,
                                     extractionColor, startTimePt, endTimePt, mid, large, blot);
                             stackExtract.run();
 
@@ -218,24 +234,24 @@ public class ExtractorMain {
                         if (!secondColorChannelFromdiSPIM.isEmpty()) {
                             //System.out.println("ImageManager found second channel stack by assuming diSPIM data structure. Loading both channels...");
                             // the assumptions for the diSIM: don't flip, don't split
-                            imageConfig.setUseStack(1);
+                            configManager.getImageConfig().setUseStack(1);
 
-                            if (!imageConfig.isSplitStackGiven()) {
-                                imageConfig.setSplitStack(0);
+                            if (!configManager.getImageConfig().isSplitStackGiven()) {
+                                configManager.getImageConfig().setSplitStack(0);
                             }
 
-                            if (!imageConfig.isFlipStackGiven()) {
-                                imageConfig.setFlipStack(0);
+                            if (!configManager.getImageConfig().isFlipStackGiven()) {
+                                configManager.getImageConfig().setFlipStack(0);
                             }
 
                             // add the second color channel to the image config so that its prefix will be maintained
-                            imageConfig.addColorChannelImageToConfig(secondColorChannelFromdiSPIM);
+                            configManager.getImageConfig().addColorChannelImageToConfig(secondColorChannelFromdiSPIM);
 
                             // set the starting time
-                            imageConfig.setStartingIndex(ImageNameLogic.extractTimeFromImageFileName(imageFile));
+                            configManager.getImageConfig().setStartingIndex(ImageNameLogic.extractTimeFromImageFileName(imageFile));
 
                             // call the stack extractor for the color specified by the CLAs
-                            StackBkgComp7 stackExtract = new StackBkgComp7(imageConfig, nucleiConfig,
+                            StackBkgComp7 stackExtract = new StackBkgComp7(configManager, nucManager,
                                     extractionColor, startTimePt, endTimePt, mid, large, blot);
                             stackExtract.run();
 
@@ -245,22 +261,22 @@ public class ExtractorMain {
                         // check if this is a rare case of a 16bit slice that needs to be opened as if it was an 8bit image but with higher bit depth
                         if (ImageNameLogic.isSliceImage(imageFile)) {
                             // assumptions for the general 16bit slice: don't flip, don't split
-                            imageConfig.setUseStack(0);
+                            configManager.getImageConfig().setUseStack(0);
 
                             // NOT SURE IF THESE ARE APPLICABLE IN THE SLICE CASE
-                            if (imageConfig.isSplitStackGiven()) {
-                                imageConfig.setSplitStack(0);
+                            if (configManager.getImageConfig().isSplitStackGiven()) {
+                                configManager.getImageConfig().setSplitStack(0);
                             }
 
-                            if (imageConfig.isFlipStackGiven()) {
-                                imageConfig.setFlipStack(0);
+                            if (configManager.getImageConfig().isFlipStackGiven()) {
+                                configManager.getImageConfig().setFlipStack(0);
                             }
 
                             // set the starting time
-                            imageConfig.setStartingIndex(ImageNameLogic.extractTimeFromImageFileName(imageFile));
+                            configManager.getImageConfig().setStartingIndex(ImageNameLogic.extractTimeFromImageFileName(imageFile));
 
                             // call the slice extractor for the color specified by the CLAs
-                            SliceBkgComp7 sliceExtract = new SliceBkgComp7(imageConfig, nucleiConfig,
+                            SliceBkgComp7 sliceExtract = new SliceBkgComp7(configManager, nucManager,
                                     extractionColor, startTimePt, endTimePt, mid, large, blot);
                             sliceExtract.run();
 
@@ -269,23 +285,23 @@ public class ExtractorMain {
 
                         // if none of the above options produced a second image file containing the second color channel or determined that we have a 16bit slide
                         // we'll assume that the supplied image is from a confocal microscope, i.e. the assumptions are: split, flip
-                        imageConfig.setUseStack(1);
+                        configManager.getImageConfig().setUseStack(1);
 
-                        if (!imageConfig.isSplitStackGiven()) {
-                            imageConfig.setSplitStack(1);
+                        if (!configManager.getImageConfig().isSplitStackGiven()) {
+                            configManager.getImageConfig().setSplitStack(1);
                         }
 
-                        if (!imageConfig.isFlipStackGiven()) {
-                            imageConfig.setFlipStack(1);
+                        if (!configManager.getImageConfig().isFlipStackGiven()) {
+                            configManager.getImageConfig().setFlipStack(1);
                         }
 
 
                         // set the starting time
-                        imageConfig.setStartingIndex(ImageNameLogic.extractTimeFromImageFileName(imageFile));
+                        configManager.getImageConfig().setStartingIndex(ImageNameLogic.extractTimeFromImageFileName(imageFile));
                         //this.currentImageTime = this.imageConfig.getStartingIndex();
 
                         // call the stack extractor for the color specified by the CLAs
-                        StackBkgComp7 stackExtract = new StackBkgComp7(imageConfig, nucleiConfig,
+                        StackBkgComp7 stackExtract = new StackBkgComp7(configManager, nucManager,
                                 extractionColor, startTimePt, endTimePt, mid, large, blot);
                         stackExtract.run();
 
@@ -295,23 +311,23 @@ public class ExtractorMain {
             } else {
                 String imageFile = "";
                 // assume that the stacks specified are from the confocal microscope, i.e. assume: flip, split
-                imageConfig.setUseStack(1);
+                configManager.getImageConfig().setUseStack(1);
 
-                if (!imageConfig.isSplitStackGiven()) {
-                    imageConfig.setSplitStack(1);
+                if (!configManager.getImageConfig().isSplitStackGiven()) {
+                    configManager.getImageConfig().setSplitStack(1);
                 }
 
-                if (!imageConfig.isFlipStackGiven()) {
-                    imageConfig.setFlipStack(1);
+                if (!configManager.getImageConfig().isFlipStackGiven()) {
+                    configManager.getImageConfig().setFlipStack(1);
                 }
 
-                if (imageConfig.getNumChannels() > 3) {
+                if (configManager.getImageConfig().getNumChannels() > 3) {
                     System.out.println("WARNING: More than three image channels were supplied in the .XML file. At this point," +
                             "AceTree only supports viewing 3 channels. All image file names " +
                             "will be loaded, but only the first three will be processed and displayed.");
                 }
                 // multiple images were provided in the config file. we need to query them slightly differently and then check if they exist
-                String[] images = imageConfig.getImageChannels();
+                String[] images = configManager.getImageConfig().getImageChannels();
 
                 for (String s : images) {
                     if (!s.isEmpty()) {
@@ -322,10 +338,10 @@ public class ExtractorMain {
 
 
                 // set the starting time
-                imageConfig.setStartingIndex(ImageNameLogic.extractTimeFromImageFileName(imageFile));
+                configManager.getImageConfig().setStartingIndex(ImageNameLogic.extractTimeFromImageFileName(imageFile));
 
                 // call the stack extractor for the color specified by the CLAs
-                StackBkgComp7 stackExtract = new StackBkgComp7(imageConfig, nucleiConfig,
+                StackBkgComp7 stackExtract = new StackBkgComp7(configManager, nucManager,
                         extractionColor, startTimePt, endTimePt, mid, large, blot);
                 stackExtract.run();
 
@@ -335,7 +351,8 @@ public class ExtractorMain {
             System.out.println("ExtractorMain.determineImagePropsAndDelegateExtraction() reached code end.");
     }
 
-    public static void pln(String s) {System.out.println(s);}
-    private static String R = "R";
-    private static String G = "G";
+    private static void pln(String s) {System.out.println(s);}
+    private static final String R = "R";
+    private static final String G = "G";
+    private static final String B = "B";
 }

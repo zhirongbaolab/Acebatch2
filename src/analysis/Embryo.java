@@ -1,29 +1,20 @@
 package analysis;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.text.DecimalFormat;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.Hashtable;
-import java.util.Vector;
-
-import javax.swing.tree.TreeNode;
-
-import org.rhwlab.image.ImageWindowX;
-import org.rhwlab.manifest.ManifestX;
 import org.rhwlab.snight.Config;
-import org.rhwlab.snight.NucZipper;
 import org.rhwlab.snight.NucleiMgr;
 import org.rhwlab.snight.Nucleus;
 import org.rhwlab.tree.AncesTree;
 import org.rhwlab.tree.Cell;
 import org.rhwlab.tree.CellData;
 import org.rhwlab.utils.EUtils;
+
+import javax.swing.tree.TreeNode;
+import java.io.*;
+import java.text.DecimalFormat;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.Hashtable;
+import java.util.Vector;
 
 public class Embryo {
 
@@ -430,9 +421,6 @@ public class Embryo {
         //iTifPrefixR = makeTifPrefixR(c.iTifPrefix);
         iStartTime = c.iStartingIndex;
         iEndTime = c.iEndingIndex;
-
-        iUseZip = c.iUseZip;
-        ImageWindowX.cUseZip = iUseZip;
 
         iEndPlane = estimateHighestPlane();
 
