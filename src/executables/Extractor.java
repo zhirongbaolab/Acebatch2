@@ -1,9 +1,9 @@
+package executables;
+
 import analysis.SliceBkgComp7;
 import analysis.StackBkgComp7;
 import org.rhwlab.image.ParsingLogic.ImageNameLogic;
-import org.rhwlab.image.management.ImageConfig;
 import org.rhwlab.snight.Config;
-import org.rhwlab.snight.NucleiConfig;
 import org.rhwlab.snight.NucleiMgr;
 import org.rhwlab.snight.XMLConfig;
 
@@ -19,13 +19,13 @@ import static org.rhwlab.image.management.ImageManager.getImageBitDepth;
  * and executes extraction
  *
  * Example usage: (run from within MATLAB)
- *  system(['java -cp acebatch2.jar ExtractorMain ',xmlname,' R, 400']);
+ *  system(['java -cp acebatch2.jar executables.Extractor ',xmlname,' R, 400']);
  *
  * Created: 03/2019
  * Author: @bradenkatzman
  */
 
-public class ExtractorMain {
+public class Extractor {
 
     /**
      * Parse the arguments and pass the information along to a loader
@@ -348,7 +348,7 @@ public class ExtractorMain {
                 return;
             }
 
-            System.out.println("ExtractorMain.determineImagePropsAndDelegateExtraction() reached code end.");
+            System.out.println("executables.Extractor.determineImagePropsAndDelegateExtraction() reached code end.");
     }
 
     private static void pln(String s) {System.out.println(s);}

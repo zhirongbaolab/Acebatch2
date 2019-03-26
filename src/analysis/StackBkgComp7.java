@@ -5,10 +5,7 @@ import ij.ImagePlus;
 import ij.gui.OvalRoi;
 import ij.io.Opener;
 import ij.process.*;
-import org.rhwlab.image.ImageWindow;
 import org.rhwlab.image.ParsingLogic.ImageNameLogic;
-import org.rhwlab.image.ZipImage;
-import org.rhwlab.image.management.ImageConfig;
 import org.rhwlab.snight.*;
 import org.rhwlab.utils.EUtils;
 
@@ -19,7 +16,6 @@ import java.text.DecimalFormat;
 import java.util.Collections;
 import java.util.Hashtable;
 import java.util.Vector;
-import java.util.zip.ZipEntry;
 
 public class StackBkgComp7 {
 
@@ -43,7 +39,7 @@ public class StackBkgComp7 {
     private double blot;
 
     /**
-     * Constructor called by ExtractorMain
+     * Constructor called by executables.Extractor
      */
     public StackBkgComp7(Config configManager, NucleiMgr nucManager,
                          String extractionColor, int startTimePt, int endTimePt, double mid, double large, double blot) {
@@ -69,6 +65,7 @@ public class StackBkgComp7 {
         iPlane = 15;
         iStartPlane = 1;
         iEndPlane = estimateHighestPlane();
+        System.out.println("End plane estimated at: " + iEndPlane);
 
         extract();
         saveNuclei();
@@ -80,14 +77,18 @@ public class StackBkgComp7 {
      * @return
      */
     public int estimateHighestPlane() {
-        ImagePlus ip = new Opener().openImage(this.configManager.getImageConfig().getProvidedImageFileName(), iPlane);
-        if (ip != null) {
-            return ip.getNSlices();
+        int plane = 1;
+        for (; plane <= this.configManager.getImageConfig().getPlaneEnd(); plane++) {
+            try {
+                ImagePlus ip = new Opener().openImage(this.configManager.getImageConfig().getProvidedImageFileName(), plane);
+            } catch (Exception e){
+                break;
+            }
         }
 
-        System.out.println("Couldn't open provided image file to determine number of planes in stack. Exiting...");
-        System.exit(0);
-        return -1;
+        System.gc(); // clean up a bit
+
+        return --plane;
 
 //        int plane=1;
 //        for (; plane < this.nucManager.getPlaneEnd(); plane++) {
@@ -141,7 +142,7 @@ public class StackBkgComp7 {
 
 
                 // if the stack contains multiple color channels, split and return the correct one. Otherwise, return an imageprocessor of the entire plane
-                ImageProcessor ipData = getExtractionColorData(name,p);
+                ImageProcessor ipData = getExtractionColorData(name, p);
 
 
                 if (ipData == null) {
@@ -386,8 +387,13 @@ public class StackBkgComp7 {
         if (firstMissedFile != 0) println("extract, firstMissedFile, missedFileCount, " + firstMissedFile + CS + missedFileCount);
     }
 
-    protected ImageProcessor getExtractionColorData(String imageName,int plane) {
+    protected ImageProcessor getExtractionColorData(String imageName, int plane) {
+        if (imageName == null || plane < 1) {
+            System.out.println("A null image name or an invalid plane was passed to getExtractionColorData(). Make sure these values are correct and rerun. Exiting...");
+            System.exit(0);
+        }
 
+        System.out.println("Extracting " + extractionColor + " color data from: " + imageName + ", at plane: " + plane);
 
         FileInputStream fis;
         ImagePlus ip = null;
@@ -418,9 +424,16 @@ public class StackBkgComp7 {
             // if the image is supposed to be split (i.e. it contains two color channels), split it into the correct cropped half
             if (this.configManager.getImageConfig().getSplitStack() == 1) {
                 ip = splitImage(ip,markerChannel);
+                return ip.getProcessor();
+            } else {
+                ImageProcessor iproc = ip.getProcessor();
+                // check if the image is supposed to be flipped
+                if (this.configManager.getImageConfig().getFlipStack() == 1) {
+                    iproc.flipHorizontal();
+                }
+                return iproc;
             }
 
-            return ip.getProcessor();
         } else {
             System.out.println("Image is null in getExtractionColorData. Exiting...");
             System.exit(0);
@@ -514,17 +527,13 @@ public class StackBkgComp7 {
         return 2*r;
     }
 
+
     protected static void println(String s) {System.out.println(s);}
-    protected static void print(String s) {System.out.print(s);}
-    protected static final String CS = ", ", C = ",", SP=" ";
+    protected static final String CS = ", ";
     protected static final DecimalFormat DF0 = new DecimalFormat("####");
     protected static final DecimalFormat DF1 = new DecimalFormat("####.#");
     protected static final DecimalFormat DF4 = new DecimalFormat("####.####");
-    protected static String fmt4(double d) {return DF4.format(d);}
-    protected static String fmt1(double d) {return DF1.format(d);}
-    protected static String fmt0(double d) {return DF0.format(d);}
 
     private static final String R = "R";
     private static final String G = "G";
-
 }

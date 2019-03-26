@@ -766,11 +766,11 @@ public class Measure {
 		iEMinor = (int)Math.round(ef.iMinor);
 		iEAngle = ef.iAngle;
 
-		iMeasureCSV.put(MeasureCSV.att[MeasureCSV.EXCENTER], fmt4(iEXCenter));
-		iMeasureCSV.put(MeasureCSV.att[MeasureCSV.EYCENTER], fmt4(iEYCenter));
-		iMeasureCSV.put(MeasureCSV.att[MeasureCSV.EMAJOR], fmt4(iEMajor));
-		iMeasureCSV.put(MeasureCSV.att[MeasureCSV.EMINOR], fmt4(iEMinor));
-		iMeasureCSV.put(MeasureCSV.att[MeasureCSV.EANG], fmt4(iEAngle));
+		iMeasureCSV.put(MeasureCSV.defaultAtt_v1[MeasureCSV.EXCENTER_v1], fmt4(iEXCenter));
+		iMeasureCSV.put(MeasureCSV.defaultAtt_v1[MeasureCSV.EYCENTER_v1], fmt4(iEYCenter));
+		iMeasureCSV.put(MeasureCSV.defaultAtt_v1[MeasureCSV.EMAJOR_v1], fmt4(iEMajor));
+		iMeasureCSV.put(MeasureCSV.defaultAtt_v1[MeasureCSV.EMINOR_v1], fmt4(iEMinor));
+		iMeasureCSV.put(MeasureCSV.defaultAtt_v1[MeasureCSV.EANG_v1], fmt4(iEAngle));
 		//println("fitEllipse, " + iMeasureCSV);
 
 		return 0;
@@ -786,7 +786,8 @@ public class Measure {
 		}
 		annots += iSeries + "AuxInfo" + suffix + ".csv";
 		//annots += "/dats/" + iSeries + "AuxInfo" + suffix + ".csv";
-		iMeasureCSV.writeCSV(annots);
+        iMeasureCSV.setFilePath(annots);
+		iMeasureCSV.writeCSV();
 
 	}
 

@@ -5,6 +5,7 @@ import ij.gui.OvalRoi;
 import ij.io.Opener;
 import ij.process.*;
 import org.rhwlab.image.ImageWindow;
+import org.rhwlab.image.ParsingLogic.ImageNameLogic;
 import org.rhwlab.image.ZipImage;
 import org.rhwlab.image.management.ImageConfig;
 import org.rhwlab.snight.*;
@@ -21,115 +22,108 @@ import java.util.zip.ZipEntry;
 
 
 public class SliceBkgComp7 {
+    //////////////////////////////////////
+    /**
+     * Revisions made 03/2019
+     * @author bradenkatzman
+     *
+     *
+     */
+    //////////////////////////////////////
+
+    /** vars */
+    private Config configManager;
+    private NucleiMgr nucManager;
+    private String extractionColor;
+    private int startTimePt;
+    private int endTimePt;
+    private double mid;
+    private double large;
+    private double blot;
 
     int             iTime;
     int             iPlane;
-    String          iImgPath;
-
-    public String          iTifPrefixR;
     Vector          nuclei_record;
-    String          iTitle;
 
-
-    protected int		iFileNameType;
-
-    double          iKMedium;
-    double          iKLarge;
-    double          iKBlot;
-    int             iStartTime;
-    int             iEndTime;
     public int             iStartPlane; // for testing only otherwize = 1
     public int             iEndPlane;
 
 
-
     Hashtable       iResultsHash;
 
-    public static boolean  cSignalIsGreen = false;
+    /**
+     * Constructor called by executables.Extractor
+     */
+    public SliceBkgComp7(Config configManager, NucleiMgr nucManager,
+                         String extractionColor, int startTimePt, int endTimePt, double mid, double large, double blot) {
+        // set all the parameters
+        this.configManager = configManager;
+        this.nucManager = nucManager;
+        this.extractionColor = extractionColor;
+        this.startTimePt = startTimePt;
+        this.endTimePt = endTimePt;
+        this.mid = mid;
+        this.large = large;
+        this.blot = blot;
+    }
 
-    public void extractSphere(int t, int x, int y, double z, double d) {
-        ImageWindow.cZipTifFilePath = iZipTifFilePath;
-        String imageFile = iTifPrefixR;
-        double meanSum = 0;
-        double areaSum = 0;
-        Vector histV = new Vector();
-        for (int p=iStartPlane; p <= iEndPlane; p++) {
-            String name2 = makeImageName(t, p);
-	    String name;
-	    if(iConfig.iUseStack==1){    
-		String [] sa = imageFile.split("/");
-		 name =iConfig.iZipTifFilePath+ "/"+imageFile + name2;}
-	    else{	
-		 name =iConfig.iZipTifFilePath+ "/"+imageFile + name2;}
+    public void run() {
+        // set time var
+        iTime = 1;
 
-            //println("test1, " +name2+ name+"\n");
-            ImageProcessor ipData = getRedData2(name,p);
-            double dia = circleDiameter(z, p, d);
-            int r = (int)Math.round(dia/2);
-            if (r <= 0) continue;
-            int dd = 2*r;
-            int xl = x - r;
-            int yl = y - r;
-            ipData.setRoi(xl, yl, dd, dd);
-            ImageProcessor ipcell = ipData.crop();
-	    ImageStatistics bs;
-	    if(ipcell instanceof ByteProcessor){
-		    bs = new ByteStatistics(ipcell);}
-	    else{
-		bs=new ShortStatistics(ipcell);}
+        // copy the nuclei record
+        nuclei_record = this.nucManager.getNucleiRecord();
 
-            println("extractSphere, " + p + CS + fmt1(bs.mean) + CS + bs.area);
-            meanSum += bs.mean * bs.area;
-            areaSum += bs.area;
-            histV.add(bs.histogram);
+        // set plane vars
+        iPlane = 15;
+        iStartPlane = 1;
+        iEndPlane = estimateHighestPlane();
+
+
+        extract();
+        saveNuclei();
+    }
+
+    /**
+     * Iterate over all of the image planes at a certain time point and stop when a filename is generated that doesn't exist
+     * @return
+     */
+    public int estimateHighestPlane() {
+        int plane=1;
+        for (; plane <= this.configManager.getImageConfig().getPlaneEnd(); plane++) {
+            String imageName = ImageNameLogic.appendTimeAndPlaneTo8BittifPrefix(this.configManager.getImageConfig().getImagePrefixes()[0], iTime, plane);
+            if (!new File(imageName).exists()) {
+                // make sure this isn't a situation where the first plane couldn't be found. Otherwise this next call will return 0
+                if (plane == 1) {
+                    System.out.println("The highest plane couldn't not be determined. This file does not exist: " + imageName + ". Exiting...");
+                    System.exit(0);
+                }
+
+                return --plane;
+            }
         }
-        double exp = meanSum / areaSum;
-        println("extractSphere, " + fmt4(exp));
-        reportHistogram(histV);
 
+        return -1;
     }
-
-    void reportHistogram(Vector v) {
-    	int [] rh = new int[256];
-    	for (int i=0; i < v.size(); i++) {
-    		int [] ia = (int[])v.get(i);
-    		for (int j=0; j < rh.length; j++) {
-    			rh[j] += ia[j];
-    		}
-
-    	}
-    	for (int j=0; j < rh.length; j++) {
-    		println("" + j + C + rh[j]);
-    	}
-    }
-
-    public double circleDiameter(double z, double imgPlane, double dx) {
-        double r = -0.5;
-        double cellPlane = z;
-        double R = dx/2.; //pixels
-        double y = (cellPlane - imgPlane)*iNucleiMgr.getZPixRes()/R;
-        double r2 = 1 - y*y;
-        if (r2 >= 0.) r = Math.sqrt(r2)*R;
-        return 2*r;
-    }
-
 
     public void extract() {
-    	int missedFileCount = 0;
-    	int firstMissedFile = 0;
-        println("beginning, " + iConfigFile);
-        println("parms, " + iKMedium + CS + iKLarge + CS + iKBlot + CS + iStartTime + CS + iEndTime);
+        int missedFileCount = 0;
+        int firstMissedFile = 0;
+        println("beginning, " + this.configManager.getImageConfig().getProvidedImageFileName());
+        println("parms, " + this.mid + CS + this.large + CS + this.blot + CS + this.startTimePt + CS + this.endTimePt);
+
         long startTime = System.currentTimeMillis();
-        for (int time = iStartTime; time <= iEndTime; time++) {
+
+        // iterate over all time points
+        for (int time = this.startTimePt; time <= this.endTimePt; time++) {
             long timeTime = System.currentTimeMillis();
             iResultsHash = new Hashtable();
             Vector cells = new Vector();
-            ImageWindow.cZipTifFilePath = iZipTifFilePath;
-            String imageFile = iTifPrefixR;
+
             Vector nuclei = (Vector)nuclei_record.elementAt(time - 1);
             Nucleus n = null;
 
-	    //initialize hash of results for each nucleus at this time
+            //initialize hash of results for each nucleus at this time
             for (int i=0; i < nuclei.size(); i++) {
                 n = (Nucleus)nuclei.elementAt(i);
                 if (n.status == Nucleus.NILLI) continue;
@@ -139,27 +133,25 @@ public class SliceBkgComp7 {
 
 
             Collections.sort(cells);
-           ImageStatistics bs = null;;
+            ImageStatistics bs = null;;
             String cell = null;
+
+            // iterate over all of the planes at this time point
             for (int p=iStartPlane; p <= iEndPlane; p++) {
-                String name2 = makeImageName(time, p);
-		String name;
-	    if(iConfig.iUseStack==1){    
-		String [] sa = imageFile.split("/");
-		 name =iConfig.iZipTifFilePath+ "/"+imageFile + name2;}
-	    else{	
-		 name =iConfig.iZipTifFilePath+ "/"+imageFile + name2;}
+                // generate the image name corresponding to the current plane in this current time frame
 
-       
+                // there are three possible cases for the extraction data to be handled here:
+                // 1. there is only one slice and it has only one color --> just return the image processor
+                // 2. there is only one slice and it has two colors --> crop the image into the half with the desired extraction color and return the image processor
+                // 3. there are two slices (typically one in tif/ and one in tifR/) each with a color --> return the image processor for the desired extraction color
 
+                // generate a name from the prefix supplied in the .xml file
+                String name = ImageNameLogic.appendTimeAndPlaneTo8BittifPrefix(this.configManager.getImageConfig().getImagePrefixes()[0], time, p);
 
-	    //  String name =iConfig.iZipTifFilePath+"/"+ imageFile + name2;
-	     println("8 bit about to call getreddata2, " +name2+" "+ name+"\n");
-                ImageProcessor ipData = (ImageProcessor)getRedData2(name,p);
-		 
+                ImageProcessor ipData = getExtractionColorData(name, p);
 
                 if (ipData == null) {
-                	missedFileCount++;
+                    missedFileCount++;
                     if (firstMissedFile == 0) firstMissedFile = time;
                     //println("test1, missing file, " + name + ", try to continue anyway");
                     continue;
@@ -167,29 +159,29 @@ public class SliceBkgComp7 {
 
                 }
 
-		int maxnorm=1;//Short.MAX_VALUE;
+                int maxnorm=1;//Short.MAX_VALUE;
                 ipData.setValue(0);
                 // make copy for use in blotted calcs
-                // and blot out all relevant nuclei 
-		ImageProcessor ipBlotCopy;
-		ImageProcessor ipBlotTemplate; 
-		if (ipData instanceof ByteProcessor){
-		    maxnorm=255;
-		    ipBlotCopy = new ByteProcessor(ipData.getWidth(), ipData.getHeight());
-		    ipBlotCopy.copyBits(ipData, 0, 0, ByteBlitter.COPY);
-		    ipBlotCopy.setValue(0);
-		    ipBlotTemplate = new ByteProcessor(ipData.getWidth(), ipData.getHeight());
-		    ipBlotTemplate.setValue(255);
-		}else
-		    {
-		        ipBlotCopy = new ShortProcessor(ipData.getWidth(), ipData.getHeight());
-			ipBlotCopy.copyBits(ipData, 0, 0, ShortBlitter.COPY);
-			ipBlotCopy.setValue(0);
-			ipBlotTemplate = new ShortProcessor(ipData.getWidth(), ipData.getHeight());
-			ipBlotTemplate.setValue(maxnorm);	
-		    }
-		// ipblottemplate filled in with max value now  drawing over it in zeros
-		//ipblotcopy is copy of image
+                // and blot out all relevant nuclei
+                ImageProcessor ipBlotCopy;
+                ImageProcessor ipBlotTemplate;
+                if (ipData instanceof ByteProcessor){
+                    maxnorm=255;
+                    ipBlotCopy = new ByteProcessor(ipData.getWidth(), ipData.getHeight());
+                    ipBlotCopy.copyBits(ipData, 0, 0, ByteBlitter.COPY);
+                    ipBlotCopy.setValue(0);
+                    ipBlotTemplate = new ByteProcessor(ipData.getWidth(), ipData.getHeight());
+                    ipBlotTemplate.setValue(255);
+                }else
+                {
+                    ipBlotCopy = new ShortProcessor(ipData.getWidth(), ipData.getHeight());
+                    ipBlotCopy.copyBits(ipData, 0, 0, ShortBlitter.COPY);
+                    ipBlotCopy.setValue(0);
+                    ipBlotTemplate = new ShortProcessor(ipData.getWidth(), ipData.getHeight());
+                    ipBlotTemplate.setValue(maxnorm);
+                }
+                // ipblottemplate filled in with max value now  drawing over it in zeros
+                //ipblotcopy is copy of image
 
                 ipBlotTemplate.fill();
                 ipBlotTemplate.setValue(0);
@@ -197,7 +189,7 @@ public class SliceBkgComp7 {
                     cell = (String)cells.get(i);
                     Result result = (Result)iResultsHash.get(cell);
                     Nucleus nn = result.n;
-                    double bdia = nucDiameter(nn, p, iKBlot * nn.size);
+                    double bdia = nucDiameter(nn, p, this.blot * nn.size);
                     if (bdia > 0) {
                         int r2 = (int)Math.round(bdia/2);
                         Polygon blot = EUtils.pCircle(nn.x, nn.y, r2);
@@ -205,7 +197,7 @@ public class SliceBkgComp7 {
                         ipBlotTemplate.fillPolygon(blot);
                     }
                 }
-		// all drawin in in black now in both over white (1) in template
+                // all drawin in in black now in both over white (1) in template
 
                 int count = 0;
                 for (int i=0; i < cells.size(); i++) {
@@ -213,7 +205,7 @@ public class SliceBkgComp7 {
                     //if (cell.indexOf("MSppppp") != 0) continue; //##################
                     Result result = (Result)iResultsHash.get(cell);
                     n = result.n;
-                    double dl = n.size * iKLarge;
+                    double dl = n.size * this.large;
                     double dia = nucDiameter(n, p, dl);
                     int r = (int)Math.round(dia/2);
                     if (r <= 0) continue;
@@ -230,42 +222,42 @@ public class SliceBkgComp7 {
                     ImageProcessor ipcell = ipData.crop();//crop of original
                     ImageProcessor ipblot = ipBlotCopy.crop();//crop of blacked out original
                     ImageProcessor ipblottemplate = ipBlotTemplate.crop();//crop of nucleus blotted template
-		    ImageProcessor iptemplate;
-		    if (ipcell instanceof ByteProcessor){
-			iptemplate = new ByteProcessor(ipcell.getWidth(), ipcell.getHeight());
-			iptemplate.setValue(255);
-		    }
-		    else{iptemplate = new ShortProcessor(ipcell.getWidth(), ipcell.getHeight());
-			iptemplate.setValue(maxnorm);
-		    }
-	
-		    iptemplate.fill();
+                    ImageProcessor iptemplate;
+                    if (ipcell instanceof ByteProcessor){
+                        iptemplate = new ByteProcessor(ipcell.getWidth(), ipcell.getHeight());
+                        iptemplate.setValue(255);
+                    }
+                    else{iptemplate = new ShortProcessor(ipcell.getWidth(), ipcell.getHeight());
+                        iptemplate.setValue(maxnorm);
+                    }
+
+                    iptemplate.fill();
                     iptemplate.setRoi(new OvalRoi(0, 0, d, d));
                     ImageProcessor mask = null;
                     try {
                         mask = iptemplate.getMask();
-			if(ipData instanceof ByteProcessor){
-			    iptemplate.copyBits(mask, 0, 0, Blitter.AND);// big circle?
-			    ipcell.copyBits(mask, 0, 0, Blitter.AND);//remove small circle
-			    ipblot.copyBits(mask, 0, 0, Blitter.AND);
-			    ipblottemplate.copyBits(mask, 0, 0, Blitter.AND);
-			}
-			else{
-			    mask.multiply(1.0/255.0);//1/0 mask
-			    iptemplate.copyBits(mask, 0, 0, Blitter.MULTIPLY);// big circle?
-			    ipcell.copyBits(mask, 0, 0, Blitter.MULTIPLY);//remove small circle
-			    ipblot.copyBits(mask, 0, 0, Blitter.MULTIPLY);
-			    ipblottemplate.copyBits(mask, 0, 0, Blitter.MULTIPLY);
-			}
+                        if(ipData instanceof ByteProcessor){
+                            iptemplate.copyBits(mask, 0, 0, Blitter.AND);// big circle?
+                            ipcell.copyBits(mask, 0, 0, Blitter.AND);//remove small circle
+                            ipblot.copyBits(mask, 0, 0, Blitter.AND);
+                            ipblottemplate.copyBits(mask, 0, 0, Blitter.AND);
+                        }
+                        else{
+                            mask.multiply(1.0/255.0);//1/0 mask
+                            iptemplate.copyBits(mask, 0, 0, Blitter.MULTIPLY);// big circle?
+                            ipcell.copyBits(mask, 0, 0, Blitter.MULTIPLY);//remove small circle
+                            ipblot.copyBits(mask, 0, 0, Blitter.MULTIPLY);
+                            ipblottemplate.copyBits(mask, 0, 0, Blitter.MULTIPLY);
+                        }
                     } catch(Exception e) {
                         println("test1 exception, " + e);
                         println("test1, " + iptemplate + CS + ipcell + CS + mask);
                     }
 
-		    // iptemplate I think is now the large circle data
+                    // iptemplate I think is now the large circle data
                     mask = null;
                     // consider the medium sphere
-                    double dm = n.size * iKMedium;
+                    double dm = n.size * mid;
                     double mdia = nucDiameter(n, p, dm);
                     if (mdia > 0) {
                         // consider the nuclear sphere
@@ -279,47 +271,47 @@ public class SliceBkgComp7 {
                             ImageProcessor ipnuc = ipData.crop();
                             ipnuc.setRoi(new OvalRoi(0, 0, nd, nd));
                             mask = ipnuc.getMask();
-			                                
-			    ImageProcessor ipbogus;
-			    if(ipnuc instanceof ByteProcessor){
-				ipnuc.copyBits(mask, 0, 0, Blitter.AND);//use
-				mask = null;			  
-				ipbogus = new ByteProcessor(ipnuc.getWidth(), ipnuc.getHeight());
-				ipbogus.setValue(0);
-				ipbogus.fill();	 
-				bs = new ByteStatistics(ipbogus);
-				//println("test1, " + p + CS + bs.mean + CS + bs.area + CS + d);
-				bs = new ByteStatistics(ipnuc);
-			    }else{
-				mask.multiply(1.0/255.0);//convert to 0/1 mask as
-				ipnuc.copyBits(mask, 0, 0, Blitter.MULTIPLY);//use multiply for short
-				mask = null;
-				ipbogus = new ShortProcessor(ipnuc.getWidth(), ipnuc.getHeight());
-				ipbogus.setValue(0);
-				ipbogus.fill();	 
-				bs = new ShortStatistics(ipbogus);
-				bs = new ShortStatistics(ipnuc);
-			    }
-			    
-			    
+
+                            ImageProcessor ipbogus;
+                            if(ipnuc instanceof ByteProcessor){
+                                ipnuc.copyBits(mask, 0, 0, Blitter.AND);//use
+                                mask = null;
+                                ipbogus = new ByteProcessor(ipnuc.getWidth(), ipnuc.getHeight());
+                                ipbogus.setValue(0);
+                                ipbogus.fill();
+                                bs = new ByteStatistics(ipbogus);
+                                //println("test1, " + p + CS + bs.mean + CS + bs.area + CS + d);
+                                bs = new ByteStatistics(ipnuc);
+                            }else{
+                                mask.multiply(1.0/255.0);//convert to 0/1 mask as
+                                ipnuc.copyBits(mask, 0, 0, Blitter.MULTIPLY);//use multiply for short
+                                mask = null;
+                                ipbogus = new ShortProcessor(ipnuc.getWidth(), ipnuc.getHeight());
+                                ipbogus.setValue(0);
+                                ipbogus.fill();
+                                bs = new ShortStatistics(ipbogus);
+                                bs = new ShortStatistics(ipnuc);
+                            }
+
+
                             //println("extract, test1, " + p + CS + fmt4(bs.mean) + CS + bs.area + CS + d);
-                            
-			    //println("stats "+(bs.mean)+" "+bs.umean+" "+ipnuc.maxValue()+" "+(ipnuc.getMaxThreshold())+" "+ipnuc.getPixelValue(10,10)+"\n");
-			    int[] hist=ipnuc.getHistogram();
-			    //println("histogram stats "+ipnuc.getHistogramMin()+ipnuc.getHistogramMax()+" "+hist.length+"\n");
-			    //int hcount=0;
-			    //int sum=0;
-			    //for (int k=0; k<hist.length; k++) {
-			    //		hcount = hcount+hist[k];
-			    //	sum=sum+k*hist[k];
-			    //if(hist[k]>0) println("bin "+k+" "+hist[k]);
-			    //}
-			    //println("manual histogram mean "+hcount+" "+sum+"\n");
-			    result.nucPixSum += bs.mean * bs.area;
+
+                            //println("stats "+(bs.mean)+" "+bs.umean+" "+ipnuc.maxValue()+" "+(ipnuc.getMaxThreshold())+" "+ipnuc.getPixelValue(10,10)+"\n");
+                            int[] hist=ipnuc.getHistogram();
+                            //println("histogram stats "+ipnuc.getHistogramMin()+ipnuc.getHistogramMax()+" "+hist.length+"\n");
+                            //int hcount=0;
+                            //int sum=0;
+                            //for (int k=0; k<hist.length; k++) {
+                            //		hcount = hcount+hist[k];
+                            //	sum=sum+k*hist[k];
+                            //if(hist[k]>0) println("bin "+k+" "+hist[k]);
+                            //}
+                            //println("manual histogram mean "+hcount+" "+sum+"\n");
+                            result.nucPixSum += bs.mean * bs.area;
                             result.nucAreaSum += bs.area;
                         } // done with nuc
-			
-			//                    println("extract, test2, " + result.nucPixSum + CS + result.nucAreaSum);
+
+                        //                    println("extract, test2, " + result.nucPixSum + CS + result.nucAreaSum);
 
                         // back to annulus
                         int rmed = (int)Math.round(mdia / 2 );
@@ -334,20 +326,20 @@ public class SliceBkgComp7 {
                         iptemplate.fillPolygon(medium);
 
                     } // end id mdia
-		    ImageStatistics bs3;
-		    ImageStatistics bs2;
-		    ImageStatistics bs4;
-		    if( ipblot instanceof ByteProcessor){
-			bs = new ByteStatistics(ipcell);
-			bs3 = new ByteStatistics(ipblot);
-			bs2 = new ByteStatistics(iptemplate);
-			 bs4 = new ByteStatistics(ipblottemplate);
-		    }else{	
-			bs = new ShortStatistics(ipcell);
-			bs3 = new ShortStatistics(ipblot);
-			bs2 = new ShortStatistics(iptemplate);
-			bs4 = new ShortStatistics(ipblottemplate);
-		    }
+                    ImageStatistics bs3;
+                    ImageStatistics bs2;
+                    ImageStatistics bs4;
+                    if( ipblot instanceof ByteProcessor){
+                        bs = new ByteStatistics(ipcell);
+                        bs3 = new ByteStatistics(ipblot);
+                        bs2 = new ByteStatistics(iptemplate);
+                        bs4 = new ByteStatistics(ipblottemplate);
+                    }else{
+                        bs = new ShortStatistics(ipcell);
+                        bs3 = new ShortStatistics(ipblot);
+                        bs2 = new ShortStatistics(iptemplate);
+                        bs4 = new ShortStatistics(ipblottemplate);
+                    }
                     ipcell = null;
                     ipblot = null;
                     iptemplate = null;
@@ -359,8 +351,8 @@ public class SliceBkgComp7 {
 
                     double a1 = bs.mean * bs.area;
 
-		    double a2= bs2.mean *bs2.area /maxnorm;
-		   
+                    double a2= bs2.mean *bs2.area /maxnorm;
+
                     result.nucAnnulusPixSum += a1;
                     result.nucAnnulusAreaSum += a2;
                     double a3 = bs3.mean * bs3.area;
@@ -418,248 +410,114 @@ public class SliceBkgComp7 {
 
     }
 
+    protected ImageProcessor getExtractionColorData(String imageName, int plane) {
+        if (imageName == null || plane < 1) {
+            System.out.println("A null image name or an invalid plane was passed to getExtractionColorData(). Make sure these values are correct and rerun. Exiting...");
+            System.exit(0);
+        }
+
+        // get the extraction color ID first
+        int markerChannel = 2;
+        if (extractionColor.equals(R)){
+            //System.out.println("use red channel");
+            markerChannel=2;}
+        else if (extractionColor.equals(G)){
+            //System.out.println("use green channel");
+            markerChannel=1;
+        } else {
+            System.out.println("Extraction color not properly specified as R or G. Exiting...");
+            System.exit(0);
+        }
 
 
-    public void loadFromFile(String filePath) {
-        File f = new File(filePath);
-        String parent = f.getParent();
-        NucleiMgr nucMgr = new NucleiMgr(filePath);
-        Config c = nucMgr.getConfig();
-        iConfig = c;
-        iConfigFile = c.iConfigFileName;
-        iImgPath = c.iTypicalImage;
-        iNucleiMgr = nucMgr;
-        iPlane = 15;
-        iTime = 1;
-        nuclei_record = iNucleiMgr.getNucleiRecord();
-        //println("loadFromFile, " + c);
-        iZipTifFilePath = c.iZipTifFilePath;
-	if(c.iUseStack!=1){
-        iTifPrefixR = makeTifPrefixR(c.iTifPrefix);
-	}
-	else{
-	    iTifPrefixR=c.iTifPrefix;
-	}
-        iStartTime = c.iStartingIndex;
+        // check the split flag to see if this is a rare case of a slice with two color present
+        if (this.configManager.getImageConfig().getSplitStack() == 1) {
+            System.out.println("Extracting " + extractionColor + " color data from: " + imageName);
 
-        iUseZip = c.iUseZip;
-        ImageWindow.cUseZip = iUseZip;
-
-        iEndPlane = estimateHighestPlane();
-
-        iStartPlane = 1;
-
-    }
-
-
-    public int estimateHighestPlane() {
-        int plane=1;
-        for (; plane < iNucleiMgr.getPlaneEnd(); plane++) {
-            String imageFile = iZipTifFilePath;
-            imageFile += "/" + iTifPrefixR;
-            imageFile += makeImageName(iStartTime, plane);
-	    System.out.println("trying to create image "+imageFile+"\n");
+            // crop the desired region of the image and return its processor
+            // try and open the supplied image
+            ImagePlus ip = null;
             try {
-                FileInputStream fis = new FileInputStream(imageFile);
-            } catch(Exception e) {
-                break;
+                ip = new Opener().openImage(imageName);
+            } catch (Exception e){
+                System.out.println("Exception opening image: " + imageName);
+                System.exit(0);
             }
+
+            ip = splitImage(ip, markerChannel);
+            return ip.getProcessor();
+        } else if (this.configManager.getImageConfig().getSplitStack() == 0) {
+            // check if there is another file (like in tif/ or tifR/
+            String secondColorChannelAttempt = ImageNameLogic.findSecondColorChannelFromSliceImage(imageName);
+            if (!imageName.equals(secondColorChannelAttempt)) {
+                // a second color channel was found. Determine which one corresponds to the desired extraction color
+                if (extractionColor.equals(R) &&
+                        (secondColorChannelAttempt.contains(ImageNameLogic.tifRDir) || secondColorChannelAttempt.contains(ImageNameLogic.tifRDir_2))) {
+                    // switch the image name from the one supplied to the second color generated
+                    imageName = secondColorChannelAttempt;
+                }
+
+            }
+
+            // either a second color channel attempt wasn't found, it was found but didn't correspond to the extraction color, or it was found and is now set as imageName
+            System.out.println("Extracting " + extractionColor + " color data from: " + imageName);
+
+            ImagePlus ip = null;
+            try {
+                ip = new Opener().openImage(imageName);
+            } catch (Exception e){
+                System.out.println("Exception opening image: " + imageName);
+                System.exit(0);
+            }
+            ImageProcessor iproc = ip.getProcessor();
+
+            // see if it needs to be flipped
+            if (this.configManager.getImageConfig().getFlipStack() == 1){
+                iproc.flipHorizontal();
+            }
+
+            return iproc;
         }
-        return (--plane);
+
+        return null;
     }
 
-    private String makeTifPrefixR(String tifPrefix) {
-        if (cSignalIsGreen) return tifPrefix;
-        String [] sa = tifPrefix.split("/");
-        return sa[0] + "R/" + sa[1];
-    }
-    
-    protected ImageProcessor getRedData2(String greenName,int plane) {
-	
-		
-           
-	
-
-
-	System.out.println("getRedData 8bit: " + greenName +" "+ plane);
-        if (ImageWindow.cUseZip == 2) return getRedZipData(greenName);
-        FileInputStream fis;
-        ImagePlus ip = null;
-        //String ss = "/home/biowolp/AncesTree/temp2/images/050405-t050-p15.tif";
-	if (iConfig.iUseStack==1){
-	    ip = new Opener().openImage(greenName,plane);
-	}else{
-	    ip = new Opener().openImage(greenName);
-	}
-	
-	//try {
-	//       fis = new FileInputStream(greenName);
-	//       byte [] ba = ImageWindow.readByteArray(fis);
-	//       ip = ImageWindow.openTiff(new ByteArrayInputStream(ba), false);
-	//       fis.close();
-	if(iConfig.iUseStack==1) {
-	    
-	    int markerChannel;
-	    if (!cSignalIsGreen){
-		//System.out.println("use red channel");
-		markerChannel=2;}
-	    else{
-		//System.out.println("use green channel");
-		markerChannel=1;
-	    }
-	    
-	    ip=ImageWindow.splitImage(ip,markerChannel);
-	    //}/
-	    
-	    //ip = readData(fis);
-	    ///     } catch(IOException ioe) {
-	    //   System.out.println("ImageWindow.test3 exception ");
-	    //   System.out.println(ioe);
-	}
-	//ip.setDisplayRange(0,Short.MAX_VALUE);
-	//ImagePlus.getDefault16bitRange();
-	//	ImagePlus.setDefault16bitRange(16);//set it to not rescale?
-	if (ip != null) return ip.getProcessor();
-	else return null;
-    }
-    
-
-    protected ImageProcessor getRedZipData(String redName) {
-        ZipImage zipImage = new ZipImage(redName);
-        int k1 = redName.lastIndexOf("/") + 1;
-        String ss = redName.substring(k1);
-        int k2 = ss.indexOf(".");
-        ss = ss.substring(0, k2);
-        //System.out.println("using: " + ss);
-        ZipEntry ze = null;
-        if (zipImage != null) ze = zipImage.getZipEntry(ss + ".tif");
-        //System.out.println("ZipEntry: " + ze);
-        //if (cZipImage == null) cZipImage = new ZipImage(cZipTifFilePath);
-        //ZipEntry ze = cZipImage.getZipEntry(s);
-        ImagePlus ip = null;
-        ip = zipImage.readData(ze, true);
-        if (ip != null) return ip.getProcessor();
-        else return null;
-    }
-
-    public String makeImageName(int time, int plane) {
-	/**
-        // typical name: t001-p15.tif
-        // to be augmented later to something like: images/050405-t001-p15.tif
-        // which specifies a path and prefix for the set
-        StringBuffer name = new StringBuffer("t");
-        name.append(EUtils.makePaddedInt(time));
-        name.append("-p");
-        String p = EUtils.makePaddedInt(plane, 2);
-        name.append(p);
-        switch(iUseZip) {
-        case 0:
-        case 1:
-            name.append(".tif");
-            break;
-        default:
-            name.append(".zip");
+    private ImagePlus splitImage(ImagePlus ip, int markerChannel) {
+        if (ip == null) {
+            System.out.println("Image passed to splitImage is null. Exiting...");
+            System.exit(0);
         }
-        return(name.toString());
-	fgf
-	**/
-	return imageNameHandler(time, plane);
 
-    }
+        ImageProcessor iproc = ip.getProcessor();
 
-    public boolean checkExists(File f)
-    {
-    	return f.exists();
-    }
-    //this is a copy of teds image name handler routine
-    //easier than trying to make the original in AceTree static...
-  public String imageNameHandler(int time, int plane)
-    {
-    	StringBuffer namebuf = new StringBuffer("t");
-        namebuf.append(EUtils.makePaddedInt(time));
-        if(iConfig.iUseStack == 0)
-        {
-        	namebuf.append("-p");
-        	String p = EUtils.makePaddedInt(plane, 2);
-        	namebuf.append(p);
+        // see if the image is supposed to be flipped
+        if (this.configManager.getImageConfig().getFlipStack() == 1) {
+            iproc.flipHorizontal();
         }
-        String original_name = namebuf.toString();
-      	StringBuffer namebuf2 = new StringBuffer("t");
-        namebuf2.append(String.valueOf(time));
-        String new_name = namebuf2.toString();
-        
-        //System.out.println("AceTree.java 1548: " + iZipTifFilePath + C.Fileseparator + iTifPrefix + original_name + ".tif");
-        //System.out.println("AceTree.java 1548: " + iZipTifFilePath + C.Fileseparator + iTifPrefix + new_name + ".tif");
-           
-        if(iFileNameType == 0)
-        {
-        	switch(1)
-        	{
-        		case 0:
-        		default:
-        			if(checkExists(new File(iZipTifFilePath + "/" +iConfig.iTifPrefix + original_name + ".tif"))) { iFileNameType = 1; break; }
-        			if(checkExists(new File(iZipTifFilePath + "/" +iConfig.iTifPrefix + new_name + ".TIF"))) { iFileNameType = 8; break; }
-        			if(checkExists(new File(iZipTifFilePath +"/" + iConfig.iTifPrefix + original_name + ".TIF"))) { iFileNameType = 2; break; }
-        			if(checkExists(new File(iZipTifFilePath + "/" + iConfig.iTifPrefix + original_name + ".tiff"))) { iFileNameType = 3; break; }
-					if(checkExists(new File(iZipTifFilePath + "/" + iConfig.iTifPrefix + original_name + ".TIFF"))) { iFileNameType = 4; break; }
-					if(checkExists(new File(iZipTifFilePath +"/"  + iConfig.iTifPrefix + original_name + ".zip"))) { iFileNameType = 5; break; }
-					if(checkExists(new File(iZipTifFilePath +"/"+ iConfig.iTifPrefix + original_name + ".ZIP"))) { iFileNameType = 6; break; }
-					if(checkExists(new File(iZipTifFilePath +"/"+ iConfig.iTifPrefix + new_name + ".tif"))) { iFileNameType = 7; break; }
-					if(checkExists(new File(iZipTifFilePath +"/" + iConfig.iTifPrefix + new_name + ".tiff"))) { iFileNameType = 9; break; }
-					if(checkExists(new File(iZipTifFilePath +"/"+ iConfig.iTifPrefix + new_name + ".TIFF"))) { iFileNameType = 10; break; }
-					if(checkExists(new File(iZipTifFilePath +"/" + iConfig.iTifPrefix + new_name + ".zip"))) { iFileNameType = 11; break; }
-					if(checkExists(new File(iZipTifFilePath +"/" + iConfig.iTifPrefix + new_name + ".ZIP"))) { iFileNameType = 12; break; }
-        	}
-        }
-        
-        
-        //System.out.println("AceTree.java 1557: " + iFileNameType);
-        
-        switch(iFileNameType)
-        {
-        	case 1:
-        		return(original_name + ".tif");
-        	case 8:
-        		return(new_name + ".TIF");
-        	case 2:
-        		return(original_name + ".TIF");
-        	case 3:
-        		return(original_name + ".tiff");
-        	case 4:
-        		return(original_name + ".TIFF");
-        	case 5:
-        		return(original_name + ".zip");
-        	case 6:
-        		return(original_name + ".ZIP");
-        	case 7:
-        		return(new_name + ".tif");
-        	case 9:
-        		return(new_name + ".tiff");
-        	case 10:
-        		return(new_name + ".TIFF");
-        	case 11:
-        		return(new_name + ".zip");
-        	case 12:
-        		return(new_name + ".ZIP");
-       		default:
-       			return(null);
-        }
-    }
- 
 
-    public void setParameters(int start, int end, double kMedium, double kLarge, double kBlot) {
-        iStartTime = start;
-        iEndTime = end;
-        iKMedium = kMedium;
-        iKLarge = kLarge;
-        iKBlot  = kBlot;
+        if (markerChannel == 1) {
+            // we'll assume the green side is the right side portion of the image (recall, the image may have been flipped)
+            iproc.setRoi(new Rectangle(ip.getWidth()/2, 0, ip.getWidth()/2, ip.getHeight()));
+        } else if (markerChannel == 2) {
+            // we'll assume the red side is the left side portion of the image
+            iproc.setRoi(new Rectangle(0, 0, ip.getWidth()/2, ip.getHeight()));
+        } else {
+            System.out.println("The marker channel supplied to splitImage() is incorrect or unsupported. Please specify R or G extraction. Exiting...");
+            System.exit(0);
+        }
+
+        // process and return the cropped image
+        ImageProcessor croppedImage = iproc.crop();
+        ip.setProcessor(croppedImage);
+
+        return ip;
     }
 
     public void saveNuclei() {
-    	String fileName = iConfig.iZipFileName;
-    	File file = new File(fileName);
+        String fileName = this.configManager.getNucleiConfig().getZipFileName();
+        File file = new File(fileName);
         System.out.println("saveNuclei: " + file);
-        NucZipper nz = new NucZipper(file, iNucleiMgr);
+        NucZipper nz = new NucZipper(file, nucManager);
         //nz = null;
     }
 
@@ -678,79 +536,25 @@ public class SliceBkgComp7 {
     }
     /**
 
-    public ImageProcessor getRedData2(String greenName,int plane) {
-        //FileInputStream fis;
-        ImagePlus ip = null;
-	// ip = ImageWindow.makeImage2(greenName);
-        ip = ImageWindow.makeImage2(greenName,plane,iConfig.iUseStack);
-        if (ip != null) return ip.getProcessor();
-        else return null;
-    }
-    **/
+     public ImageProcessor getRedData2(String greenName,int plane) {
+     //FileInputStream fis;
+     ImagePlus ip = null;
+     // ip = ImageWindow.makeImage2(greenName);
+     ip = ImageWindow.makeImage2(greenName,plane,iConfig.iUseStack);
+     if (ip != null) return ip.getProcessor();
+     else return null;
+     }
+     **/
 
     public double nucDiameter(Nucleus n, double imgPlane, double dx) {
         if (n == null) return -1; //covers some issues re currentCell and not tracking
         double r = -0.5;
         double cellPlane = n.z;
-        double R = dx/2.; //pixels
-        double y = (cellPlane - imgPlane)*iNucleiMgr.getZPixRes()/R;
-        double r2 = 1 - y*y;
-        if (r2 >= 0.) r = Math.sqrt(r2)*R;
-        return 2*r;
-    }
-
-    //////////////////////////////////////
-    /**
-     * Revisions made 03/2019
-     * @author bradenkatzman
-     *
-     *
-     */
-    //////////////////////////////////////
-
-    /** vars */
-    private Config configManager;
-    private NucleiMgr nucManager;
-    private String extractionColor;
-    private int startTimePt;
-    private int endTimePt;
-    private double mid;
-    private double large;
-    private double blot;
-
-    /**
-     * Constructor called by ExtractorMain
-     */
-    public SliceBkgComp7(Config configManager, NucleiMgr nucManager,
-                         String extractionColor, int startTimePt, int endTimePt, double mid, double large, double blot) {
-        // set all the parameters
-        this.configManager = configManager;
-        this.nucManager = nucManager;
-        this.extractionColor = extractionColor;
-        this.startTimePt = startTimePt;
-        this.endTimePt = endTimePt;
-        this.mid = mid;
-        this.large = large;
-        this.blot = blot;
-    }
-
-    public void run() {
-        loadFromFile(args[0]);
-        int end = Integer.parseInt(args[1]);
-        int start = 1;
-        if (args.length > 2) start = Integer.parseInt(args[2]);
-        double mid = 1.2;
-        double large = 2.0;
-        double blot = 1.2;
-        if (args.length > 3) {
-            mid = Double.parseDouble(args[3]);
-            large = Double.parseDouble(args[4]);
-            blot = Double.parseDouble(args[5]);
-        }
-        rbc.setParameters(start, end, mid, large, blot);
-
-        rbc.extract();
-        rbc.saveNuclei();
+        double R = dx / 2.; //pixels
+        double y = (cellPlane - imgPlane) * this.configManager.getNucleiConfig().getZPixRes() / R;
+        double r2 = 1 - y * y;
+        if (r2 >= 0.) r = Math.sqrt(r2) * R;
+        return 2 * r;
     }
 
     protected static void println(String s) {System.out.println(s);}
@@ -762,5 +566,8 @@ public class SliceBkgComp7 {
     protected static String fmt4(double d) {return DF4.format(d);}
     protected static String fmt1(double d) {return DF1.format(d);}
     protected static String fmt0(double d) {return DF0.format(d);}
+
+    private static final String R = "R";
+    private static final String G = "G";
 
 }
