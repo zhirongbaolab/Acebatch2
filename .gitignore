@@ -2,3 +2,4 @@
 *.iml
 *.MF
 out/
+*.DS_Store
