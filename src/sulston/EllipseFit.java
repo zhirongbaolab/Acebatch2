@@ -10,14 +10,12 @@ import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
-
-import java.awt.Color;
-import java.awt.Dimension;
-import java.io.File;
-import java.text.DecimalFormat;
-
 import org.rhwlab.dbaccess.EmbryoXML;
 import org.rhwlab.utils.EUtils;
+
+import java.awt.*;
+import java.io.File;
+import java.text.DecimalFormat;
 
 public class EllipseFit {
 
