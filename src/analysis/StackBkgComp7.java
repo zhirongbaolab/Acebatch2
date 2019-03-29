@@ -91,20 +91,6 @@ public class StackBkgComp7 {
         System.gc(); // clean up a bit
 
         return --plane;
-
-//        int plane=1;
-//        for (; plane < this.nucManager.getPlaneEnd(); plane++) {
-//            String imageFile = iZipTifFilePath;
-//            imageFile += "/" + iTifPrefixR;
-//            imageFile += makeImageName(iStartTime, plane);
-//            System.out.println("trying to make image "+imageFile+"\n");
-//            try {
-//                FileInputStream fis = new FileInputStream(imageFile);
-//            } catch(Exception e) {
-//                break;
-//            }
-//        }
-//        return (--plane);
     }
 
     public void extract() {
@@ -118,7 +104,7 @@ public class StackBkgComp7 {
         // iterate over all of the time points
         System.out.println("Starting extraction with: " + ImageNameLogic.appendTimeToSingle16BitTIFPrefix((this.configManager.getImageConfig().getImagePrefixes())[0], this.startTimePt));
         for (int time = this.startTimePt; time <= this.endTimePt; time++) {
-            System.out.print(".");
+            System.out.print("."); // use this to indicate that the data is being processed
             // do some reporting every so often
             if (time % 50 == 0) {
                 System.out.println("Extracting " + extractionColor + " color data at time point: " + time);
@@ -510,7 +496,7 @@ public class StackBkgComp7 {
         File file = new File(fileName);
 
         System.out.println("saveNuclei: " + file);
-        NucZipper nz = new NucZipper(file, nucManager, configManager);
+        NucZipper nz = new NucZipper(file, this.nucManager, this.configManager);
 
     }
 

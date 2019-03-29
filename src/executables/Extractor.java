@@ -39,6 +39,8 @@ public class Extractor {
             System.exit(0);
         }
 
+        System.out.println("Acebatch2 Extractor.main() entered");
+
         // extract the xml file path
         String filepath = args[0];
 
@@ -103,6 +105,13 @@ public class Extractor {
         // make a NucleiMgr object from the config object
         NucleiMgr nucManager = new NucleiMgr(configManager.getNucleiConfig());
 
+        // make sure that we were actually able to build a NucleiMgr
+        if (nucManager.iGoodNucleiMgr == false) {
+            System.out.println("ERROR: Couldn't create a NucleiMgr object. Ensure that the .zip listed in the XML is correct " +
+                    "and that the program output displays the correct path to the zip.");
+                    System.exit(0);
+        }
+
         if (configManager.getImageConfig() != null && configManager.getNucleiConfig() != null) {
             determineImagePropsAndDelegateExtraction(configManager, nucManager, extractionColor, startTimePt, endTimePt, mid, large, blot);
         }
@@ -161,6 +170,8 @@ public class Extractor {
                                 configManager.getImageConfig().setStartingIndex(ImageNameLogic.extractTimeFromImageFileName(newFileNameAttempt));
 
                                 // call the stack extractor for the color specified by the CLAs
+                                System.out.println("\n\n***********************");
+                                System.out.println("Running STACK_EXTRACT. Num time points: " + endTimePt + ", Extraction Color: " + extractionColor);
                                 StackBkgComp7 stackExtract = new StackBkgComp7(configManager, nucManager,
                                         extractionColor, startTimePt, endTimePt, mid, large, blot);
                                 stackExtract.run();
@@ -192,6 +203,8 @@ public class Extractor {
                         configManager.getImageConfig().setStartingIndex(ImageNameLogic.extractTimeFromImageFileName(configManager.getImageConfig().getProvidedImageFileName()));
 
                         // call the slice extractor for the color specified by the CLAs
+                        System.out.println("\n\n***********************");
+                        System.out.println("Running SLICE_EXTRACT. Num time points: " + endTimePt + ", Extraction Color: " + extractionColor);
                         SliceBkgComp7 sliceExtract = new SliceBkgComp7(configManager, nucManager,
                                 extractionColor, startTimePt, endTimePt, mid, large, blot);
                         sliceExtract.run();
@@ -222,6 +235,8 @@ public class Extractor {
                             configManager.getImageConfig().setStartingIndex(ImageNameLogic.extractTimeFromImageFileName(imageFile));
 
                             // call the stack extractor for the color specified by the CLAs
+                            System.out.println("\n\n***********************");
+                            System.out.println("Running STACK_EXTRACT. Num time points: " + endTimePt + ", Extraction Color: " + extractionColor);
                             StackBkgComp7 stackExtract = new StackBkgComp7(configManager, nucManager,
                                     extractionColor, startTimePt, endTimePt, mid, large, blot);
                             stackExtract.run();
@@ -251,6 +266,8 @@ public class Extractor {
                             configManager.getImageConfig().setStartingIndex(ImageNameLogic.extractTimeFromImageFileName(imageFile));
 
                             // call the stack extractor for the color specified by the CLAs
+                            System.out.println("\n\n***********************");
+                            System.out.println("Running STACK_EXTRACT. Num time points: " + endTimePt + ", Extraction Color: " + extractionColor);
                             StackBkgComp7 stackExtract = new StackBkgComp7(configManager, nucManager,
                                     extractionColor, startTimePt, endTimePt, mid, large, blot);
                             stackExtract.run();
@@ -276,6 +293,8 @@ public class Extractor {
                             configManager.getImageConfig().setStartingIndex(ImageNameLogic.extractTimeFromImageFileName(imageFile));
 
                             // call the slice extractor for the color specified by the CLAs
+                            System.out.println("\n\n***********************");
+                            System.out.println("Running SLICE_EXTRACT. Num time points: " + endTimePt + ", Extraction Color: " + extractionColor);
                             SliceBkgComp7 sliceExtract = new SliceBkgComp7(configManager, nucManager,
                                     extractionColor, startTimePt, endTimePt, mid, large, blot);
                             sliceExtract.run();
@@ -301,6 +320,8 @@ public class Extractor {
                         //this.currentImageTime = this.imageConfig.getStartingIndex();
 
                         // call the stack extractor for the color specified by the CLAs
+                        System.out.println("\n\n***********************");
+                        System.out.println("Running STACK_EXTRACT. Num time points: " + endTimePt + ", Extraction Color: " + extractionColor);
                         StackBkgComp7 stackExtract = new StackBkgComp7(configManager, nucManager,
                                 extractionColor, startTimePt, endTimePt, mid, large, blot);
                         stackExtract.run();
@@ -341,6 +362,8 @@ public class Extractor {
                 configManager.getImageConfig().setStartingIndex(ImageNameLogic.extractTimeFromImageFileName(imageFile));
 
                 // call the stack extractor for the color specified by the CLAs
+                System.out.println("\n\n***********************");
+                System.out.println("Running STACK_EXTRACT. Num time points: " + endTimePt + ", Extraction Color: " + extractionColor);
                 StackBkgComp7 stackExtract = new StackBkgComp7(configManager, nucManager,
                         extractionColor, startTimePt, endTimePt, mid, large, blot);
                 stackExtract.run();
@@ -348,7 +371,7 @@ public class Extractor {
                 return;
             }
 
-            System.out.println("executables.Extractor.determineImagePropsAndDelegateExtraction() reached code end.");
+            System.out.println("executables.Extractor.determineImagePropsAndDelegateExtraction() reached code end without running extractor.");
     }
 
     private static void pln(String s) {System.out.println(s);}
