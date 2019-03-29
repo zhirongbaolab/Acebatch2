@@ -95,7 +95,7 @@ public class Extractor {
      * @param large
      * @param blot
      */
-    public static void loadDatasetAndDelegateExtraction(String configFilePath, String extractionColor, int startTimePt, int endTimePt, double mid, double large, double blot) {
+    private static void loadDatasetAndDelegateExtraction(String configFilePath, String extractionColor, int startTimePt, int endTimePt, double mid, double large, double blot) {
         XMLConfig xmlConfigLoader = new XMLConfig();
         Hashtable<String, String> xmlConfigData = xmlConfigLoader.loadConfigDataFromXMLFile(configFilePath);
 
@@ -128,7 +128,7 @@ public class Extractor {
      * These same checks are all made here to make Acebatch2 compatible with all .xml files that are supported
      * by AceTree
      */
-    public static void determineImagePropsAndDelegateExtraction(Config configManager, NucleiMgr nucManager,
+    private static void determineImagePropsAndDelegateExtraction(Config configManager, NucleiMgr nucManager,
                                                                        String extractionColor, int startTimePt, int endTimePt, double mid, double large, double blot) {
             // first thing we need to check if whether multiple image files (corresponding to different color channels) were provided in the config file
             // these two conditions are the result of the two conventions for supplying an <image> tag in the XML file. See documentation or ImageConfig.java

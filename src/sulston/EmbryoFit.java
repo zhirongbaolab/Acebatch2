@@ -6,7 +6,6 @@ import flanagan.plot.PlotGraph;
 import org.rhwlab.snight.NucleiMgr;
 import vembryo.Vembryo3;
 
-import java.text.DecimalFormat;
 import java.util.Vector;
 
 public class EmbryoFit {
@@ -22,9 +21,6 @@ public class EmbryoFit {
 		iSeries = series;
 	}
 
-	public Embryo getEmbryo() {
-		return iEmbryo;
-	}
 
 	public void setEmbryo(Embryo emb) {
 		iEmbryo = emb;
@@ -32,13 +28,14 @@ public class EmbryoFit {
 
 	void getSeriesData() {
 		Vembryo3 ves = new Vembryo3(null, false, true);
-		iNucleiMgr = iEmbryo.iNucleiMgr;
+		iNucleiMgr = iEmbryo.getNucManager();
 		Vector v = iNucleiMgr.getNucleiRecord();
 		Vector v2 = ves.getNucleiRecord();
 
 		int k = v.size();
 		int end = Math.min(400, k);
 		iEnd = end;
+
 		//if (v.size() < end) return null;
 		double [] t = new double[end];
 		double [] dt = new double[end];
@@ -82,7 +79,6 @@ public class EmbryoFit {
 				//return 1;
 				break;
 			}
-			//println("compareFit, " + i + CS + iDs[i] + CS + iDt[i]);
 			fit[0][i] = i;
 			fit[2][i] = i;
 			fit[1][i] = iDs[i];
@@ -90,7 +86,6 @@ public class EmbryoFit {
 		}
 		if (showDetails) {
 			PlotGraph pg = new PlotGraph(fit);
-			//pg.setTitle("sulston vs " + iSeries);
 			pg.setLine(0);
 			pg.plot();
 		}
@@ -102,7 +97,6 @@ public class EmbryoFit {
     class MinimFunct implements MinimisationFunction{
 
     	EmbryoFit 	iEF;
-    	int				iCount;
 
     	public MinimFunct(EmbryoFit ef) {
     		iEF = ef;
@@ -116,10 +110,7 @@ public class EmbryoFit {
 			//println("function, b, " + iCount++ + CS + e2 + CS + param[0] + CS + param[1]);
 			return e2;
 		}
-
     }
-
-
 
 
 	/**
@@ -129,14 +120,5 @@ public class EmbryoFit {
 	}
 
 	private static void println(String s) {System.out.println(s);}
-    private static void print(String s) {System.out.print(s);}
-    private static final String CS = ", ", C = ",";
-    private static final String TAB = "\t";
-    private static final DecimalFormat DF0 = new DecimalFormat("####");
-    private static final DecimalFormat DF1 = new DecimalFormat("####.#");
-    private static final DecimalFormat DF4 = new DecimalFormat("####.####");
-    private static String fmt4(double d) {return DF4.format(d);}
-    private static String fmt1(double d) {return DF1.format(d);}
-    private static String fmt0(double d) {return DF0.format(d);}
 
 }
