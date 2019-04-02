@@ -51,7 +51,7 @@ public class Measure {
 
         this.iSeries = getSeries();
         this.iAnnots = getAnnots();
-        this.iMeasureCSV.put(MeasureCSV.defaultAtt_v1[MeasureCSV.SERIES_v1], iSeries);
+        this.iMeasureCSV.put(MeasureCSV.att_v1[MeasureCSV.SERIES_v1], iSeries);
 
 
         this.iEmbryo = new Embryo(this.configManager, this.nucManager, this.iSeries);
@@ -68,14 +68,14 @@ public class Measure {
         writeCSV("");
 
         int r = getTimeScale();
-        //println("getTimeScale, " + meas.iMeasureCSV);
+        println("getTimeScale, " + iMeasureCSV);
         if (r != 0) return;
         r = processNucz();
-        //println("processNucz, " + meas.iMeasureCSV);
+        println("processNucz, " + iMeasureCSV);
         if (r != 0) return;
         r = fitEllipse();
         if (r != 0) {
-            //println("Measure.main, " + "fitEllipse failure");
+            println("Measure.main, " + "fitEllipse failure");
             return;
         }
 
@@ -102,7 +102,7 @@ public class Measure {
     }
 
     private int getTimeScale() {
-	    System.out.println("***Getting time scale***");
+	    System.out.println("\n\n*** Getting time scale ***");
 
         EmbryoFit ef = new EmbryoFit(iSeries);
         ef.setEmbryo(iEmbryo);
@@ -127,13 +127,13 @@ public class Measure {
         iTimeOffset = b[1];
         iTime = (int)Math.round(iTimeSlope * SULSTONCELLSTAGE192 + iTimeOffset);
 
-        iMeasureCSV.put(MeasureCSV.defaultAtt_v1[MeasureCSV.TSLOPE_v1], fmt4(iTimeSlope));
-        iMeasureCSV.put(MeasureCSV.defaultAtt_v1[MeasureCSV.TINTERCEPT_v1], fmt4(iTimeOffset));
-        iMeasureCSV.put(MeasureCSV.defaultAtt_v1[MeasureCSV.TIME_v1], fmt4(iTime));
-        iMeasureCSV.put(MeasureCSV.defaultAtt_v1[MeasureCSV.ZPIXRES_v1], fmt4(iEmbryo.getZPixRes()));
-        iMeasureCSV.put(MeasureCSV.defaultAtt_v1[MeasureCSV.AXIS_v1], iEmbryo.getAxis());
+        iMeasureCSV.put(MeasureCSV.att_v1[MeasureCSV.TSLOPE_v1], fmt4(iTimeSlope));
+        iMeasureCSV.put(MeasureCSV.att_v1[MeasureCSV.TINTERCEPT_v1], fmt4(iTimeOffset));
+        iMeasureCSV.put(MeasureCSV.att_v1[MeasureCSV.TIME_v1], fmt4(iTime));
+        iMeasureCSV.put(MeasureCSV.att_v1[MeasureCSV.ZPIXRES_v1], fmt4(iEmbryo.getZPixRes()));
+        iMeasureCSV.put(MeasureCSV.att_v1[MeasureCSV.AXIS_v1], iEmbryo.getAxis());
 
-        //println(iSeries + C  + fmt4(iTimeSlope) + CS + fmt4(iTimeOffset) +  CS + iTime + CS + min.getMinimum() + CS + min.getNiter());
+        println(iSeries + CS  + fmt4(iTimeSlope) + CS + fmt4(iTimeOffset) +  CS + iTime + CS + min.getMinimum() + CS + min.getNiter());
         int u = ef.compareFit(b[0], b[1], iShowDetails);
         if (minimum > 60000) {
             println("getTimeScale, big minimum, " + minimum);
@@ -143,6 +143,7 @@ public class Measure {
     }
 
     private int processNucz() {
+	    println("\n\n*** Processing nucz ***");
         double [] cnucZ = zposTest3();
         if (cnucZ == null) {
             println("Failure in processNucz, incomplete nuclei record.");
@@ -191,10 +192,10 @@ public class Measure {
         double lowbreak = -est[0]/est[1];
         double highbreak = (2 * half - est[0])/est[1];
         iZSlope = est[1];
-        //println(iSeries + CS + fmt1(center) + CS + fmt1(iZSlope) + CS + fmt1(lowbreak) + CS + fmt1(highbreak));
+        println(iSeries + CS + fmt1(center) + CS + fmt1(iZSlope) + CS + fmt1(lowbreak) + CS + fmt1(highbreak));
 
-        iMeasureCSV.put(MeasureCSV.defaultAtt_v1[MeasureCSV.ZSLOPE_v1], fmt4(iZSlope));
-        iMeasureCSV.put(MeasureCSV.defaultAtt_v1[MeasureCSV.ZCENTER_v1], fmt4(iZCenter));
+        iMeasureCSV.put(MeasureCSV.att_v1[MeasureCSV.ZSLOPE_v1], fmt4(iZSlope));
+        iMeasureCSV.put(MeasureCSV.att_v1[MeasureCSV.ZCENTER_v1], fmt4(iZCenter));
 
 
         double [][] pb = new double[4][len];
@@ -210,14 +211,17 @@ public class Measure {
             } else pb[3][i] = cnucZ[len - 1];
         }
 
+        System.out.println("Finished processing nucz");
         return 0;
     }
 
     private int fitEllipse() {
+	    println("\n\n*** Fitting ellipse ***");
+
         String szc = iMeasureCSV.get("zc");
         double dzc = Double.parseDouble(szc);
         String stime = iMeasureCSV.get("time");
-        //println("fitEllipse, " + szc + CS + stime);
+        println("fitEllipse, " + szc + CS + stime);
         int time = Integer.parseInt(stime);
         Vector nuclei_record = this.iEmbryo.getNucManager().getNucleiRecord();
         Vector nuclei = (Vector)nuclei_record.get(time - 1);
@@ -337,25 +341,26 @@ public class Measure {
 
         iEXCenter = (int)Math.round(xcenter);
         iEYCenter = (int)Math.round(ycenter);
+        //println("fitEllipse, B, center values, " + fmt4(iEXCenter) + CS + fmt4(iEYCenter));
         iEMajor = (int)Math.round(xmajor);
         iEMinor = (int)Math.round(xminor);
         iEAngle = angUse;
 
-        iMeasureCSV.put(MeasureCSV.defaultAtt_v1[MeasureCSV.EXCENTER_v1], fmt4(iEXCenter));
-        iMeasureCSV.put(MeasureCSV.defaultAtt_v1[MeasureCSV.EYCENTER_v1], fmt4(iEYCenter));
-        iMeasureCSV.put(MeasureCSV.defaultAtt_v1[MeasureCSV.EMAJOR_v1], fmt4(iEMajor));
-        iMeasureCSV.put(MeasureCSV.defaultAtt_v1[MeasureCSV.EMINOR_v1], fmt4(iEMinor));
-        iMeasureCSV.put(MeasureCSV.defaultAtt_v1[MeasureCSV.EANG_v1], fmt4(iEAngle));
+        iMeasureCSV.put(MeasureCSV.att_v1[MeasureCSV.EXCENTER_v1], fmt4(iEXCenter));
+        iMeasureCSV.put(MeasureCSV.att_v1[MeasureCSV.EYCENTER_v1], fmt4(iEYCenter));
+        iMeasureCSV.put(MeasureCSV.att_v1[MeasureCSV.EMAJOR_v1], fmt4(iEMajor));
+        iMeasureCSV.put(MeasureCSV.att_v1[MeasureCSV.EMINOR_v1], fmt4(iEMinor));
+        iMeasureCSV.put(MeasureCSV.att_v1[MeasureCSV.EANG_v1], fmt4(iEAngle));
 
         return 0;
     }
 
 
 	private String getSeries() {
-		println("getSeries, " + this.configManager.getConfigFileName());
+		//println("getSeries, " + this.configManager.getConfigFileName());
 		File f = new File(this.configManager.getConfigFileName());
 		String fname = f.getName();
-		println("getSeries, " + fname);
+		//println("getSeries, " + fname);
 		String series = fname.substring(0, fname.length() - 4);
 		return series;
 	}
@@ -381,7 +386,7 @@ public class Measure {
     		zz = Math.max(zz, n.z);
     	}
     	int k = (int)Math.ceil(zz);
-    	//println("estimateMaxPlane, " + k);
+    	println("estimateMaxPlane, " + k);
     	return k + 1;
     }
 
@@ -477,6 +482,11 @@ public class Measure {
 	 ;
 
 	private static void println(String s) {System.out.println(s);}
+    private static String CS = ", ";
+    private static final DecimalFormat DF0 = new DecimalFormat("####");
+    private static final DecimalFormat DF1 = new DecimalFormat("####.#");
     private static final DecimalFormat DF4 = new DecimalFormat("####.####");
     private static String fmt4(double d) {return DF4.format(d);}
+    private static String fmt1(double d) {return DF1.format(d);}
+    private static String fmt0(double d) {return DF0.format(d);}
 }
