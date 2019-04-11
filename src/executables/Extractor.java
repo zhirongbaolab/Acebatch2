@@ -32,17 +32,16 @@ public class Extractor {
      *
      * @param args
      */
-    public static void main(String[] args) {
+    public static void runExtractor(String[] args) {
+        System.out.println("Beginning Extractor program.\n\n");
         // check the args
-        if (args.length < 3) {
-            pln("Usage requires at least three arguments: 1) .xml config file path, 2) extraction color (R,G) 3) end time");
+        if (args.length < 4) {
+            pln("Usage requires at least four arguments: 0) Program Name 1) .xml config file path, 2) extraction color (R,G) 3) end time");
             System.exit(0);
         }
 
-        System.out.println("Acebatch2 Extractor.main() entered");
-
         // extract the xml file path
-        String filepath = args[0];
+        String filepath = args[1];
 
         // make sure it's a legit file before continuing
         if (new File(filepath).exists()) {
@@ -53,24 +52,24 @@ public class Extractor {
             double blot = 1.2;
 
             // the second CLA is the color to extract
-            String extractionColor = args[1];
+            String extractionColor = args[2];
             if (!extractionColor.equals(R) && !extractionColor.equals(G) && !extractionColor.equals(B)) {
                 pln("Extraction color argument not properly specified. Must be either R, G, or B");
             }
 
             // the third CLA is the last time point
-            int endTimePt = Integer.parseInt(args[2]);
+            int endTimePt = Integer.parseInt(args[3]);
 
             // check what other parameters have been explicitly provided as CLAs
-            if (args.length > 3) {
+            if (args.length > 4) {
                 // the third CLA is the startTime
-                startTimePt = Integer.parseInt(args[3]);
+                startTimePt = Integer.parseInt(args[4]);
             }
 
-            if (args.length > 6) {
-                mid = Double.parseDouble(args[4]);
-                large = Double.parseDouble(args[5]);
-                blot = Double.parseDouble(args[6]);
+            if (args.length > 5) {
+                mid = Double.parseDouble(args[5]);
+                large = Double.parseDouble(args[6]);
+                blot = Double.parseDouble(args[7]);
             }
 
             // now that all of the args have been processed, figure out the relevant image properties and delegate to
