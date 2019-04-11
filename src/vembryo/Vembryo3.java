@@ -1,7 +1,5 @@
 package vembryo;
 
-import org.rhwlab.snight.Config;
-import org.rhwlab.snight.NucZipper;
 import org.rhwlab.snight.NucleiMgr;
 import org.rhwlab.snight.Nucleus;
 import org.rhwlab.tree.Cell;
@@ -9,8 +7,6 @@ import org.rhwlab.tree.CellData;
 
 import java.io.*;
 import java.net.URL;
-import java.text.DecimalFormat;
-import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.Vector;
@@ -38,37 +34,8 @@ public class Vembryo3 {
 
     }
 
-    public Cell getRoot() {
-    	return iRoot;
-    }
-
-    public int getEndTime() {
-    	return iEndTime;
-    }
-
-    public int getLastTime() {
-    	return iLastTime;
-    }
-
-    public Hashtable getCellsByName() {
-    	return iCellsByName;
-    }
-
     public Vector getNucleiRecord() {
     	return nuclei_record;
-    }
-
-    public Vector getCells(String root, boolean leavesOnly) {
-    	if (root.length() == 0) root = iRoot.getName();
-    	Vector v = new Vector();
-    	Cell rootCell = (Cell)iCellsByName.get(root);
-    	Enumeration e = rootCell.preorderEnumeration();
-    	while (e.hasMoreElements()) {
-    		Cell c = (Cell)e.nextElement();
-    		if (leavesOnly && !c.isLeaf()) continue;
-    		v.add(c);
-    	}
-    	return v;
     }
 
     public void initNucRec() {
@@ -80,29 +47,23 @@ public class Vembryo3 {
 		}
 		iNucleiMgr = new NucleiMgr();
 		iNucleiMgr.setNucleiRecord(nuclei_record);
-		//File f = new File(iCsvPath);
-		//String name = f.getName();
-		//String path = f.getParent();
-		//println("initNucRec, " + path);
-
-
     }
 
     public void buildTreeFromResourceFile() {
-	    URL url = this.getClass().getResource("/org/rhwlab/sulston/SCD20081128_sulston.csv");
-	    //URL url = AceTree.class.getResource("/org/rhwlab/snight/NewRules.txt");
+        System.out.println("Building tree from resource file: SCD20081128_sulston.csv");
+	    URL url = this.getClass().getResource("/sulston/SCD20081128_sulston.csv");
+
 	    InputStream istream = null;
 	    try {
 	        istream = url.openStream();
 	        BufferedReader br = new BufferedReader(new InputStreamReader(istream));
 	        String s;
-	        br.readLine(); //toss the header
+	        br.readLine(); // toss the header
 	        while (br.ready()) {
 	            s = br.readLine();
                 if (s.length() < 2) continue;
                 if (s.startsWith("#")) continue;
                 processLine(s);
-	            //println("readNewRules, " + s);
 	        }
 	        br.close();
 	    } catch(Exception e) {
@@ -178,15 +139,6 @@ public class Vembryo3 {
             	nucNow = nucNext;
 
             }
-            /*
-            vp = cc.getCellData();
-            for (int i=0; i < vp.size(); i++) {
-            	CellData cd = (CellData)vp.get(i);
-            	Nucleus nuc = cd.iNucleus;
-            	if (endTime < 17) println("addSuccessorInfo, after, " + i + CS + vp.size() + CS + nuc);
-            }
-            */
-
 
             CellData cdp = (CellData)vp.get(vp.size() - 1);
             Nucleus p = cdp.iNucleus;
@@ -205,8 +157,6 @@ public class Vembryo3 {
             CellData cd1 = (CellData)vd1.get(0);
             Nucleus nd1 = cd1.iNucleus;
             p.successor2 = nd1.index;
-
-            //println("examine, " + cc.getName() + CS + cc.getTime() + CS + cc.getEndTime() + CS + v.size());
         }
 
 
@@ -229,24 +179,7 @@ public class Vembryo3 {
         boolean newCell = (c == null) || c.getTime() == 0;
         if (c == null) c = new Cell(cn, Cell.LARGEENDTIME, ts);
         if (newCell) c.setTime(ts);
-        //boolean newCell = false;
-        //if (c.getTime() == 0) {
-        //	c.setTime(ts);
-        //	newCell = true;
-        //}
-        /*
-        boolean existingCell = (c != null);
-        boolean newCell = (c != null && c.getTime() == 0);
-        //if (newCell) c.setTime(ts);
-        if (existingCell) {
-            int time = c.getTime();
-            if (time == 0) {
-                c.setTime(ts);
-            }
-        } else {
-            c = new Cell(cn, Cell.LARGEENDTIME, ts);
-        }
-        */
+
         Cell p = processParent(c);
         if (p == null) {
             println("processLine error, " + c.getName());
@@ -263,10 +196,6 @@ public class Vembryo3 {
         //println("processLine, " + c.getName());
         if (ts > 0) addCellData(c, sa, ts);
 
-
-        //Cell p = (Cell)iCellsByName.get(pn);
-        //p.add(c);
-        //int v = 0;
     }
 
     private static final int
@@ -283,9 +212,6 @@ public class Vembryo3 {
         ,SIZE = 11
         ,GWEIGHT = 12
         ;
-
-
-
 
 
     private void addCellData(Cell c, String [] sa, int time) {
@@ -321,21 +247,16 @@ public class Vembryo3 {
             nv.add(n);
 
         } catch(ArrayIndexOutOfBoundsException aiob) {
-            //println("addCellData, " + name + CS + iCsvPath);
-            //aiob.printStackTrace();
-            //System.exit(0);
+            println("addCellData, " + name + CS + iCsvPath);
+            aiob.printStackTrace();
+            System.exit(0);
         }
-        //println("addCellData, " + n);
 
-        //if (time > 0) {
-        //	Vector nv = (Vector)nuclei_record.get(time - 1);
-        //    nv.add(n);
-        //}
         iLastTime = Math.max(iLastTime,time);
 
     }
 
-    int getPredecessor(Cell c) {
+    private int getPredecessor(Cell c) {
     	Vector cdv = c.getCellData();
     	CellData cd = null;
     	int size = cdv.size();
@@ -360,11 +281,7 @@ public class Vembryo3 {
         }
 
         int w = cn.length();
-        //if (w == 1) {
-        //   if (cn.equals("E")) return "EMS";
-        //    else if (cn.equals("C")) return "P2";
-        //    else return "P3";
-        //}
+
         char x = 'X';
         if (w > 1) x = cn.charAt(w - 1);
         if (Character.isLowerCase(x)) return cn.substring(0, w - 1);
@@ -389,15 +306,6 @@ public class Vembryo3 {
         p.setEndTime(c.getTime() - 1);
         //p.add(c);
         return p;
-
-    }
-
-    private void buildFoundersX() {
-        for (int i=0; i < FOUNDERS.length; i++) {
-            String cn = FOUNDERS[i];
-            Cell c = new Cell(cn, Cell.LARGEENDTIME, 0);
-
-        }
 
     }
 
@@ -487,151 +395,12 @@ public class Vembryo3 {
         c = new Cell(cn, Cell.LARGEENDTIME, 0);
         iCellsByName.put(cn, c);
         cr.add(c);
-
-
     }
 
 
     private static final String [] FOUNDERS =
     {"P0", "P1", "P2", "P3", "P4", "AB", "EMS", "E", "MS", "C", "D"};
 
-    private String isFounder(String cn) {
-        for (int i=0; i < FOUNDERS.length; i++) {
-            if (cn.equals(FOUNDERS[i])) return FOUNDERS[i];
-        }
-        return null;
-    }
-
-    private void examine() {
-            Cell c = (Cell)iRoot;
-            //println("examine, " + c.getName());
-            Enumeration e = c.preorderEnumeration();
-            while (e.hasMoreElements()) {
-                Cell cc = (Cell)e.nextElement();
-                Vector v = cc.getCellData();
-                println("examine, " + cc.getName() + CS + cc.getTime() + CS + cc.getEndTime() + CS + v.size());
-            }
-    }
-
-    private void makeSulstonCSV() {
-        PrintWriter pw = null;
-    	try {
-    		FileOutputStream fos = new FileOutputStream("sulston.csv");
-    		pw = new PrintWriter(fos, true);
-        } catch(FileNotFoundException fnfe) {
-        	fnfe.printStackTrace();
-        }
-
-    	Cell c = (Cell)iRoot;
-        Enumeration e = c.preorderEnumeration();
-        while (e.hasMoreElements()) {
-            Cell cc = (Cell)e.nextElement();
-            int start = cc.getTime();
-            int end = cc.getEndTime();
-            for (int t=start; t <= end; t++) {
-            	String s = makeCSVLine(cc.getName(), t);
-            	pw.println(s);
-            }
-        }
-        pw.close();
-
-    }
-
-    String makeCSVLine(String name, int t) {
-    	StringBuffer sb = new StringBuffer();
-    	sb.append(name + ":" + t);
-    	sb.append(C + name);
-    	sb.append(C + t);
-    	sb.append(",0,0,0,0,0,0,0,0,0,0");
-
-
-    	return sb.toString();
-
-    }
-
-    void examineNucleiRecord() {
-    	println("examineNucleiRecord, " + nuclei_record.size());
-    	for (int i=0; i < nuclei_record.size(); i++) {
-    		Vector nuclei = (Vector)nuclei_record.get(i);
-        	println("examineNucleiRecord, " + i + CS + nuclei.size());
-
-    	}
-
-    	for (int j=10; j <= 52; j++) {
-    		println("examineNucleiRecord, j=" + j);
-    		Vector nuclei = (Vector)nuclei_record.get(j);
-    		for (int i=0; i < nuclei.size(); i++) {
-    			Nucleus n = (Nucleus)nuclei.get(i);
-    			println("examineNucleiRecord, " + n);
-    		}
-    	}
-    }
-
-    void exportNucleiZip(String zipFileName, String configFileName) {
-    	iNucleiMgr.setConfig(new Config(configFileName));
-    	iNucleiMgr.setParameterEntry("20081128_sulston-");
-    	iNucleiMgr.dummyParameters();
-    	File f = new File(zipFileName);
-    	new NucZipper(f, iNucleiMgr);
-    }
-
-    public int estimateEndTime() {
-    	int tend = 1;
-    	Enumeration cells = iCellsByName.elements();
-    	while (cells.hasMoreElements()) {
-    		Cell c = (Cell)cells.nextElement();
-    		if (!c.isLeaf()) continue;
-    		int t = c.getTime() + c.getCellData().size();
-    		tend = Math.max(tend, t);
-
-    	}
-    	return tend;
-    }
-
-    public void shortenTree(int endTime) {
-        Enumeration e = iCellsByName.keys();
-        Vector sortedCellNames = new Vector();
-        while (e.hasMoreElements()) {
-            String s = (String)e.nextElement();
-            sortedCellNames.add(s);
-        }
-        Collections.sort(sortedCellNames);
-        for (int i=0; i < sortedCellNames.size(); i++) {
-            Cell c = (Cell)iCellsByName.get(sortedCellNames.get(i));
-            if (c.getTime() > endTime) {
-                c.removeFromParent();
-                //println("getNewTree, " + c.getName() + CS + iRoot.getLeafCount());
-            } else if (c.getEndTime() > endTime) {
-                c.setEndTime(endTime);
-            }
-        }
-
-        iCellsByName = new Hashtable();
-        Enumeration ee = iRoot.breadthFirstEnumeration();
-        while (ee.hasMoreElements()) {
-            Cell c = (Cell)ee.nextElement();
-            iCellsByName.put(c.getName(), c);
-        }
-        iLastTime = endTime;
-    }
-
-    public static void main(String[] args) {
-    	println("Vembryo3.main, ");
-    	String s = "/net/waterston/vol1/annots/zhao/20080303nob-1GFP/dats/CD20080303nob-1GFP.csv";
-        Vembryo3 ve3 = new Vembryo3(s, true, false);
-
-    }
-
-
     private static void println(String s) {System.out.println(s);}
-    private static void print(String s) {System.out.print(s);}
     private static final String CS = ", ", C = ",";
-    private static final String TAB = "\t";
-    private static final DecimalFormat DF0 = new DecimalFormat("####");
-    private static final DecimalFormat DF1 = new DecimalFormat("####.#");
-    private static final DecimalFormat DF4 = new DecimalFormat("####.####");
-    private static String fmt4(double d) {return DF4.format(d);}
-    private static String fmt1(double d) {return DF1.format(d);}
-    private static String fmt0(double d) {return DF0.format(d);}
-
 }

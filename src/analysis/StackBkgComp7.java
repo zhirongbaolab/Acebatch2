@@ -68,6 +68,8 @@ public class StackBkgComp7 {
         System.out.println("End plane estimated at: " + iEndPlane);
 
         extract();
+
+        System.out.println("Starting save nuclei routine");
         saveNuclei();
     }
 
@@ -89,20 +91,6 @@ public class StackBkgComp7 {
         System.gc(); // clean up a bit
 
         return --plane;
-
-//        int plane=1;
-//        for (; plane < this.nucManager.getPlaneEnd(); plane++) {
-//            String imageFile = iZipTifFilePath;
-//            imageFile += "/" + iTifPrefixR;
-//            imageFile += makeImageName(iStartTime, plane);
-//            System.out.println("trying to make image "+imageFile+"\n");
-//            try {
-//                FileInputStream fis = new FileInputStream(imageFile);
-//            } catch(Exception e) {
-//                break;
-//            }
-//        }
-//        return (--plane);
     }
 
     public void extract() {
@@ -114,7 +102,14 @@ public class StackBkgComp7 {
         long startTime = System.currentTimeMillis();
 
         // iterate over all of the time points
+        System.out.println("Starting extraction with: " + ImageNameLogic.appendTimeToSingle16BitTIFPrefix((this.configManager.getImageConfig().getImagePrefixes())[0], this.startTimePt));
         for (int time = this.startTimePt; time <= this.endTimePt; time++) {
+            System.out.print("."); // use this to indicate that the data is being processed
+            // do some reporting every so often
+            if (time % 50 == 0) {
+                System.out.println("Extracting " + extractionColor + " color data at time point: " + time);
+            }
+
             long timeTime = System.currentTimeMillis();
             iResultsHash = new Hashtable();
             Vector cells = new Vector();
@@ -374,17 +369,21 @@ public class StackBkgComp7 {
                     sb2.append(CS + nn.rweight);
                     sb2.append(CS + nn.rcount);
                     sb2.append(CS + nn.rsum);
-                    println(sb.toString());
-                    println(sb2.toString());
+                    //println(sb.toString());
+                    //println(sb2.toString());
 
                 }
             }
             long endTime = System.currentTimeMillis();
-            if (time % 10 == 0)println("extract, " + time + CS + (endTime - timeTime) + CS + (endTime - startTime));
+            if (time % 10 == 0){
+                println("extract, " + time + CS + (endTime - timeTime) + CS + (endTime - startTime));
+            }
             //System.gc();
 
         } // end times
-        if (firstMissedFile != 0) println("extract, firstMissedFile, missedFileCount, " + firstMissedFile + CS + missedFileCount);
+        if (firstMissedFile != 0) {
+            println("extract, firstMissedFile, missedFileCount, " + firstMissedFile + CS + missedFileCount);
+        }
     }
 
     protected ImageProcessor getExtractionColorData(String imageName, int plane) {
@@ -392,8 +391,6 @@ public class StackBkgComp7 {
             System.out.println("A null image name or an invalid plane was passed to getExtractionColorData(). Make sure these values are correct and rerun. Exiting...");
             System.exit(0);
         }
-
-        System.out.println("Extracting " + extractionColor + " color data from: " + imageName + ", at plane: " + plane);
 
         FileInputStream fis;
         ImagePlus ip = null;
@@ -497,9 +494,10 @@ public class StackBkgComp7 {
     public void saveNuclei() {
         String fileName = configManager.getNucleiConfig().getZipFileName();
         File file = new File(fileName);
+
         System.out.println("saveNuclei: " + file);
-        NucZipper nz = new NucZipper(file, nucManager);
-        //nz = null;
+        NucZipper nz = new NucZipper(file, this.nucManager, this.configManager);
+
     }
 
     protected class Result {

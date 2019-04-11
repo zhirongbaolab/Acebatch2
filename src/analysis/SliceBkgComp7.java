@@ -51,6 +51,8 @@ public class SliceBkgComp7 {
 
     Hashtable       iResultsHash;
 
+    private boolean notifiedOfBaseImagePathUpdate;
+
     /**
      * Constructor called by executables.Extractor
      */
@@ -65,6 +67,8 @@ public class SliceBkgComp7 {
         this.mid = mid;
         this.large = large;
         this.blot = blot;
+
+        this.notifiedOfBaseImagePathUpdate = false;
     }
 
     public void run() {
@@ -78,9 +82,12 @@ public class SliceBkgComp7 {
         iPlane = 15;
         iStartPlane = 1;
         iEndPlane = estimateHighestPlane();
+        System.out.println("End plane estimated at: " + iEndPlane);
 
 
         extract();
+
+        System.out.println("\nStarting save nuclei routine");
         saveNuclei();
     }
 
@@ -89,7 +96,7 @@ public class SliceBkgComp7 {
      * @return
      */
     public int estimateHighestPlane() {
-        int plane=1;
+        int plane = 1;
         for (; plane <= this.configManager.getImageConfig().getPlaneEnd(); plane++) {
             String imageName = ImageNameLogic.appendTimeAndPlaneTo8BittifPrefix(this.configManager.getImageConfig().getImagePrefixes()[0], iTime, plane);
             if (!new File(imageName).exists()) {
@@ -103,7 +110,7 @@ public class SliceBkgComp7 {
             }
         }
 
-        return -1;
+        return --plane;
     }
 
     public void extract() {
@@ -115,7 +122,14 @@ public class SliceBkgComp7 {
         long startTime = System.currentTimeMillis();
 
         // iterate over all time points
+        System.out.println("Starting extraction with: " + ImageNameLogic.appendTimeAndPlaneTo8BittifPrefix(this.configManager.getImageConfig().getImagePrefixes()[0], this.startTimePt, this.iStartPlane));
         for (int time = this.startTimePt; time <= this.endTimePt; time++) {
+            System.out.print("."); // use this to indicate that the data is being processed
+            // do some reporting every so often
+            if (time % 50 == 0) {
+                System.out.println("Extracting " + extractionColor + " color data at time point: " + time);
+            }
+
             long timeTime = System.currentTimeMillis();
             iResultsHash = new Hashtable();
             Vector cells = new Vector();
@@ -148,7 +162,7 @@ public class SliceBkgComp7 {
                 // generate a name from the prefix supplied in the .xml file
                 String name = ImageNameLogic.appendTimeAndPlaneTo8BittifPrefix(this.configManager.getImageConfig().getImagePrefixes()[0], time, p);
 
-                ImageProcessor ipData = getExtractionColorData(name, p);
+                ImageProcessor ipData = getExtractionColorData(name);
 
                 if (ipData == null) {
                     missedFileCount++;
@@ -396,8 +410,8 @@ public class SliceBkgComp7 {
                     sb2.append(CS + nn.rweight);
                     sb2.append(CS + nn.rcount);
                     sb2.append(CS + nn.rsum);
-                    println(sb.toString());
-                    println(sb2.toString());
+                    //println(sb.toString());
+                    //println(sb2.toString());
 
                 }
             }
@@ -410,8 +424,8 @@ public class SliceBkgComp7 {
 
     }
 
-    protected ImageProcessor getExtractionColorData(String imageName, int plane) {
-        if (imageName == null || plane < 1) {
+    protected ImageProcessor getExtractionColorData(String imageName) {
+        if (imageName == null) {
             System.out.println("A null image name or an invalid plane was passed to getExtractionColorData(). Make sure these values are correct and rerun. Exiting...");
             System.exit(0);
         }
@@ -432,7 +446,7 @@ public class SliceBkgComp7 {
 
         // check the split flag to see if this is a rare case of a slice with two color present
         if (this.configManager.getImageConfig().getSplitStack() == 1) {
-            System.out.println("Extracting " + extractionColor + " color data from: " + imageName);
+            //System.out.println("Extracting " + extractionColor + " color data from: " + imageName);
 
             // crop the desired region of the image and return its processor
             // try and open the supplied image
@@ -448,19 +462,26 @@ public class SliceBkgComp7 {
             return ip.getProcessor();
         } else if (this.configManager.getImageConfig().getSplitStack() == 0) {
             // check if there is another file (like in tif/ or tifR/
-            String secondColorChannelAttempt = ImageNameLogic.findSecondColorChannelFromSliceImage(imageName);
+            String secondColorChannelAttempt = ImageNameLogic.findSecondColorChannelFromSliceImage(imageName); // note that this method also checks that the file generated exists on the system
             if (!imageName.equals(secondColorChannelAttempt)) {
                 // a second color channel was found. Determine which one corresponds to the desired extraction color
-                if (extractionColor.equals(R) &&
-                        (secondColorChannelAttempt.contains(ImageNameLogic.tifRDir) || secondColorChannelAttempt.contains(ImageNameLogic.tifRDir_2))) {
+                if ((extractionColor.equals(R) && (secondColorChannelAttempt.contains(ImageNameLogic.tifRDir) || secondColorChannelAttempt.contains(ImageNameLogic.tifRDir_2))) ||
+                        (extractionColor.equals(G) && (secondColorChannelAttempt.contains(ImageNameLogic.tifDir) || secondColorChannelAttempt.contains(ImageNameLogic.tifDir_2)))   ) {
                     // switch the image name from the one supplied to the second color generated
                     imageName = secondColorChannelAttempt;
-                }
 
+                    // notify user if haven't done so already
+                    if (!notifiedOfBaseImagePathUpdate) {
+                        System.out.println("\n*******************");
+                        System.out.println("A second color channel image was generated from the image file provided in the .xml. It was determined that this second color channel image contains the desired extraction color.");
+                        System.out.println("The image name was updated to: " + imageName);
+                        notifiedOfBaseImagePathUpdate = true;
+                    }
+                }
             }
 
             // either a second color channel attempt wasn't found, it was found but didn't correspond to the extraction color, or it was found and is now set as imageName
-            System.out.println("Extracting " + extractionColor + " color data from: " + imageName);
+            //System.out.println("Extracting " + extractionColor + " color data from: " + imageName);
 
             ImagePlus ip = null;
             try {
@@ -516,8 +537,9 @@ public class SliceBkgComp7 {
     public void saveNuclei() {
         String fileName = this.configManager.getNucleiConfig().getZipFileName();
         File file = new File(fileName);
+
         System.out.println("saveNuclei: " + file);
-        NucZipper nz = new NucZipper(file, nucManager);
+        NucZipper nz = new NucZipper(file, this.nucManager, this.configManager);
         //nz = null;
     }
 
