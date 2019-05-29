@@ -54,9 +54,9 @@ public class Embryo {
         iEndPlane = estimateHighestPlane();
 
         // set the time vars
-        this.iStartTime = this.configManager.getImageConfig().getStartingIndex();
+        this.iStartTime = this.configManager.getNucleiConfig().getStartingIndex();
         this.iTime = 1;
-        this.iEndTime = this.configManager.getImageConfig().getEndingIndex();
+        this.iEndTime = this.configManager.getNucleiConfig().getEndingIndex();
 
         nuclei_record = this.nucManager.getNucleiRecord();
 
@@ -87,7 +87,7 @@ public class Embryo {
     		Cell cEMS = (Cell)iCellsByName.get("EMS");
     		Cell cP2 = (Cell)iCellsByName.get("P2");
     		boolean good = cABa != null && cABp != null && cEMS != null && cP2 != null;
-    		//println("getAxis, " + iSeriesName + CS + good);
+    		println("getAxis, " + iSeriesName + ", " + good);
     		int cABat1 = cABa.getTime();
     		int cABpt1 = cABp.getTime();
     		int cEMSt1 = cEMS.getTime();
@@ -111,7 +111,8 @@ public class Embryo {
     			else axis += "VL";
     		}
     	} catch(Exception e) {
-    		e.printStackTrace();
+    		//e.printStackTrace();
+            System.out.println("Couldn't determine axis. Setting as 'XXX'");
     		axis = "XXX";
     	}
     	return axis;

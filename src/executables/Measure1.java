@@ -16,20 +16,29 @@ public class Measure1 {
 	/**
 	 * @param args
 	 */
-	public static void main(String[] args) {
+	public static void runMeasure(String[] args) {
+	    System.out.println("Beginning Measure program.\n\n");
 		// there should be one argument, a path to an xml file
         // check the args
-        if (args.length < 1) {
-            System.out.println("Usage requires at least one arguments: 1) .xml config file path");
+        if (args.length < 2) {
+            System.out.println("Usage requires at least two arguments: 0) Program Name 1) .xml config file path");
             System.exit(0);
         }
 
         // extract the xml file path
-        String filepath = args[0];
+        String filepath = args[1];
+
+        // if the file doesn't have .xml appended, do so now
+        if (!filepath.endsWith(".xml")) {
+            filepath += ".xml";
+        }
 
         // make sure it's a legit file before continuing
         if (new File(filepath).exists()) {
             buildConfigsAndManagers(filepath);
+        } else {
+            System.out.println("Supplied file does not exist. Please check and rerun: " + filepath);
+            System.exit(0);
         }
 	}
 
